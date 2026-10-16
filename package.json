@@ -1,0 +1,16 @@
+{
+  "name": "hagi-release-drafter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Composite GitHub Action that drafts the next stable vX.Y.Z release from Conventional Commits. Never publishes.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
+  }
+}
