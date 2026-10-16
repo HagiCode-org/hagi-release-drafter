@@ -114,6 +114,32 @@ Chaque commit est placé dans la première section dont la règle correspond. Le
 
 Chaque entrée est rendue sous la forme `- **scope:** description ([`short-sha`](commit-url))`. Le préfixe de scope est omis lorsqu'un commit n'a pas de scope.
 
+## Limite d'entrées
+
+Le corps d'une release affiche au plus **100 entrées de commit**. Les titres de section, le pied de page et le texte d'un intervalle vide ne comptent pas. Un intervalle comptant 100 commits candidats ou moins affiche tous les commits.
+
+Chaque candidat reçoit un niveau de priorité selon son type Conventional Commit. La première règle qui correspond s'applique.
+
+| Niveau | Correspond à |
+| --- | --- |
+| 1 | Changements incompatibles de tout type, et `feat` |
+| 2 | `fix`, `perf` |
+| 3 | `refactor`, `revert`, et tout commit de scope `security` (insensible à la casse). `fix(security)` reste au niveau 2. |
+| 4 | `build`, `chore`, `ci`, `docs`, `style`, `test`, et les sujets qui ne suivent pas le format Conventional Commits |
+
+Au-delà de 100 candidats, les commits sont omis du niveau le plus bas vers le haut, jusqu'à ce qu'il en reste 100 :
+
+1. Niveau 4 avant niveau 3, niveau 3 avant niveau 2, et niveau 2 avant niveau 1.
+2. Au sein du niveau 1, `feat` avant les changements incompatibles.
+3. Sans scope avant avec scope.
+4. Plus anciens avant plus récents.
+
+Pour sortir un commit `chore`, `ci` ou `docs` lié à la sécurité du niveau 4, donnez-lui le scope `security`, par exemple `chore(security): rotate signing key`.
+
+Lorsqu'un commit est omis, le corps se termine par un pied de page tel que `_Showing 100 of 170 commits._ [Full changelog](...)`. Le lien pointe vers la vue de comparaison entre le dernier tag stable et `HEAD`, ou vers la liste des commits si aucun tag stable n'existe.
+
+La limite n'affecte que le corps affiché. La version reste calculée à partir de tous les commits candidats, y compris ceux qui sont omis.
+
 ## Politique de tags
 
 - Chaque release de cette action reçoit un tag `vX.Y.Z` immuable.

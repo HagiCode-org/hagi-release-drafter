@@ -122,6 +122,38 @@ commits keep git's newest-first order.
 Each entry is rendered as `- **scope:** description ([`short-sha`](commit-url))`. The scope
 prefix is omitted when a commit has no scope.
 
+## Entry limit
+
+A release body renders at most **100 commit entries**. Section headings, the footer, and the
+empty-range text do not count. A range with 100 or fewer candidate commits renders every commit.
+
+Each candidate gets a priority tier from its Conventional Commit type. The first matching rule wins.
+
+| Tier | Matches |
+| --- | --- |
+| 1 | Breaking changes of any type, and `feat` |
+| 2 | `fix`, `perf` |
+| 3 | `refactor`, `revert`, and any commit with scope `security` (case-insensitive). `fix(security)` stays in Tier 2. |
+| 4 | `build`, `chore`, `ci`, `docs`, `style`, `test`, and subjects that do not follow the Conventional Commits format |
+
+Above 100 candidates, commits are omitted from the lowest tier upward until 100 remain:
+
+1. Tier 4 before Tier 3, Tier 3 before Tier 2, and Tier 2 before Tier 1.
+2. Inside Tier 1, `feat` before breaking changes.
+3. Unscoped before scoped.
+4. Older before newer.
+
+To keep a security-relevant `chore`, `ci`, or `docs` commit out of Tier 4, give it the scope `security`,
+for example `chore(security): rotate signing key`.
+
+When any commit is omitted, the body ends with a footer such as
+`_Showing 100 of 170 commits._ [Full changelog](https://github.com/owner/repo/compare/v1.3.0...<sha>)`.
+The footer links the compare view from the last stable tag to `HEAD`, or the commit list when no stable
+tag exists.
+
+The limit affects only the rendered body. The version is still derived from every candidate commit,
+including the omitted ones.
+
 ## Tagging policy
 
 - Each release of this action gets an immutable `vX.Y.Z` tag.

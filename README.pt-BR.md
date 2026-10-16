@@ -114,6 +114,32 @@ Cada commit cai na primeira seção cuja regra ele atende. Seções vazias são 
 
 Cada entrada é renderizada como `- **scope:** description ([`short-sha`](commit-url))`. O prefixo de escopo é omitido quando o commit não tem escopo.
 
+## Limite de entradas
+
+O corpo de uma release renderiza no máximo **100 entradas de commit**. Os títulos de seção, o rodapé e o texto de um intervalo vazio não contam. Um intervalo com 100 commits candidatos ou menos renderiza todos os commits.
+
+Cada candidato recebe um nível de prioridade pelo tipo do Conventional Commit. Vale a primeira regra que corresponder.
+
+| Nível | Corresponde a |
+| --- | --- |
+| 1 | Mudanças incompatíveis de qualquer tipo, e `feat` |
+| 2 | `fix`, `perf` |
+| 3 | `refactor`, `revert`, e qualquer commit com escopo `security` (sem diferenciar maiúsculas). `fix(security)` permanece no nível 2. |
+| 4 | `build`, `chore`, `ci`, `docs`, `style`, `test`, e assuntos que não seguem o formato Conventional Commits |
+
+Acima de 100 candidatos, commits são omitidos do nível mais baixo para cima, até restarem 100:
+
+1. Nível 4 antes do nível 3, nível 3 antes do nível 2, e nível 2 antes do nível 1.
+2. Dentro do nível 1, `feat` antes das mudanças incompatíveis.
+3. Sem escopo antes de com escopo.
+4. Mais antigos antes de mais recentes.
+
+Para tirar um commit `chore`, `ci` ou `docs` relevante para segurança do nível 4, dê a ele o escopo `security`, por exemplo `chore(security): rotate signing key`.
+
+Quando algum commit é omitido, o corpo termina com um rodapé como `_Showing 100 of 170 commits._ [Full changelog](...)`. O link aponta para a visualização de comparação desde a última tag estável até `HEAD`, ou para a lista de commits se não houver tag estável.
+
+O limite afeta apenas o corpo renderizado. A versão continua sendo derivada de todos os commits candidatos, incluindo os omitidos.
+
 ## Política de tags
 
 - Cada release desta action recebe uma tag `vX.Y.Z` imutável.

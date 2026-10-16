@@ -114,6 +114,32 @@ Jeder Commit landet im ersten Abschnitt, dessen Regel er erfüllt. Leere Abschni
 
 Jeder Eintrag wird als `- **scope:** description ([`short-sha`](commit-url))` dargestellt. Das Scope-Präfix entfällt, wenn ein Commit keinen Scope hat.
 
+## Eintragslimit
+
+Ein Release-Body rendert höchstens **100 Commit-Einträge**. Abschnittsüberschriften, die Fußzeile und der Text für einen leeren Bereich zählen nicht mit. Ein Bereich mit 100 oder weniger Kandidaten-Commits rendert jeden Commit.
+
+Jeder Kandidat erhält eine Prioritätsstufe anhand seines Conventional-Commit-Typs. Die erste zutreffende Regel gilt.
+
+| Stufe | Trifft zu |
+| --- | --- |
+| 1 | Breaking Changes jedes Typs und `feat` |
+| 2 | `fix`, `perf` |
+| 3 | `refactor`, `revert` und jeder Commit mit Scope `security` (ohne Beachtung der Groß-/Kleinschreibung). `fix(security)` bleibt in Stufe 2. |
+| 4 | `build`, `chore`, `ci`, `docs`, `style`, `test` und Betreffzeilen, die nicht dem Conventional-Commits-Format folgen |
+
+Bei mehr als 100 Kandidaten werden Commits von der niedrigsten Stufe an entfernt, bis 100 übrig sind:
+
+1. Stufe 4 vor Stufe 3, Stufe 3 vor Stufe 2 und Stufe 2 vor Stufe 1.
+2. Innerhalb von Stufe 1 wird `feat` vor Breaking Changes entfernt.
+3. Ohne Scope vor mit Scope.
+4. Älter vor neuer.
+
+Um einen sicherheitsrelevanten `chore`-, `ci`- oder `docs`-Commit aus Stufe 4 herauszuhalten, geben Sie ihm den Scope `security`, zum Beispiel `chore(security): rotate signing key`.
+
+Wenn Commits entfernt werden, endet der Body mit einer Fußzeile wie `_Showing 100 of 170 commits._ [Full changelog](...)`. Der Link führt zur Vergleichsansicht vom letzten stabilen Tag bis `HEAD`, oder zur Commit-Liste, wenn kein stabiler Tag existiert.
+
+Das Limit betrifft nur den gerenderten Body. Die Version wird weiterhin aus allen Kandidaten-Commits abgeleitet, einschließlich der entfernten.
+
 ## Tag-Richtlinie
 
 - Jedes Release dieser Action erhält einen unveränderlichen Tag `vX.Y.Z`.

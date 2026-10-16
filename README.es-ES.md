@@ -114,6 +114,32 @@ Cada commit cae en la primera sección cuya regla cumple. Las secciones vacías 
 
 Cada entrada se muestra como `- **scope:** description ([`short-sha`](commit-url))`. El prefijo del ámbito se omite cuando un commit no tiene ámbito.
 
+## Límite de entradas
+
+Un cuerpo de release muestra como máximo **100 entradas de commit**. Los encabezados de sección, el pie y el texto de un rango vacío no cuentan. Un rango con 100 commits candidatos o menos muestra todos los commits.
+
+Cada candidato recibe un nivel de prioridad según el tipo de Conventional Commit. Se aplica la primera regla que coincida.
+
+| Nivel | Coincide con |
+| --- | --- |
+| 1 | Cambios incompatibles de cualquier tipo, y `feat` |
+| 2 | `fix`, `perf` |
+| 3 | `refactor`, `revert` y cualquier commit con ámbito `security` (sin distinguir mayúsculas). `fix(security)` permanece en el nivel 2. |
+| 4 | `build`, `chore`, `ci`, `docs`, `style`, `test` y los asuntos que no siguen el formato de Conventional Commits |
+
+Con más de 100 candidatos, se omiten commits desde el nivel más bajo hacia arriba hasta que queden 100:
+
+1. Nivel 4 antes que nivel 3, nivel 3 antes que nivel 2, y nivel 2 antes que nivel 1.
+2. Dentro del nivel 1, `feat` antes que los cambios incompatibles.
+3. Sin ámbito antes que con ámbito.
+4. Más antiguos antes que más recientes.
+
+Para que un commit `chore`, `ci` o `docs` relevante para la seguridad no quede en el nivel 4, asígnele el ámbito `security`, por ejemplo `chore(security): rotate signing key`.
+
+Cuando se omite algún commit, el cuerpo termina con un pie como `_Showing 100 of 170 commits._ [Full changelog](...)`. El enlace apunta a la vista de comparación desde la última etiqueta estable hasta `HEAD`, o a la lista de commits si no existe ninguna etiqueta estable.
+
+El límite solo afecta al cuerpo renderizado. La versión se sigue calculando a partir de todos los commits candidatos, incluidos los omitidos.
+
 ## Política de tags
 
 - Cada release de esta action recibe un tag `vX.Y.Z` inmutable.
