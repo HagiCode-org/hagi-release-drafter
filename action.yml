@@ -1,7 +1,5 @@
 name: Hagi Release Drafter
-description: >-
-  Drafts the next stable vX.Y.Z GitHub release from Conventional Commits since the
-  last stable tag, or updates the existing draft. Never publishes a release.
+description: Drafts the next stable vX.Y.Z GitHub release from Conventional Commits. Never publishes.
 
 inputs:
   version:
