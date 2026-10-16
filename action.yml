@@ -69,7 +69,7 @@ runs:
           exit 1
         fi
         # Assign first: inside echo's arguments a failing node call would not stop the step.
-        version="$(node "${{ github.action_path }}/scripts/release-notes.mjs" version)"
+        version="$(node "${{ github.action_path }}/scripts/release-notes.ts" version)"
         echo "version=$version" >> "$GITHUB_OUTPUT"
 
     # S4: render the release body from the same commit range.
@@ -79,7 +79,7 @@ runs:
       env:
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        node "${{ github.action_path }}/scripts/release-notes.mjs" notes > "$RUNNER_TEMP/release-notes.md"
+        node "${{ github.action_path }}/scripts/release-notes.ts" notes > "$RUNNER_TEMP/release-notes.md"
         echo "notes-file=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
 
     # S5: create or update the draft. The script never publishes.
