@@ -1,0 +1,39 @@
+name: Release draft
+
+# Drafts this repository's next stable vX.Y.Z release with the action in this repository.
+# `uses: ./` runs the action from the commit being built, so a change to action.yml is
+# exercised by the very next push. Publishing the draft is a manual step; this workflow
+# never publishes a release.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional stable X.Y.Z to use instead of the version derived from commits
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-draft
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Draft the release with this action
+        uses: ./
+        with:
+          version: ${{ inputs.version }}

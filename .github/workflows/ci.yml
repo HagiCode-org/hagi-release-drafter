@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      # The action is checked out beside the fixture so that the fixture can become the
+      # workspace root. Composite steps always run in the workspace root.
+      - name: Check out the action
+        uses: actions/checkout@v6
+        with:
+          path: action
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Build the fixture repository in the workspace
+        shell: bash
+        run: bash action/test/fixtures/make-fixture-repo.sh "$GITHUB_WORKSPACE"
+
+      # The stub gh answers read calls and records writes. The draft step therefore runs
+      # for real but cannot create or edit a release, and the read-only token is enough.
+      - name: Put the stub gh first on PATH
+        shell: bash
+        run: |
+          echo "$GITHUB_WORKSPACE/action/test/fixtures/stub-gh" >> "$GITHUB_PATH"
+          echo "STUB_GH_LOG=$RUNNER_TEMP/gh-calls.log" >> "$GITHUB_ENV"
+
+      - name: Run the action against the fixture
+        id: drafter
+        uses: ./action
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Assert version, tag, and notes
+        shell: bash
+        env:
+          EXPECTED_VERSION: '2.0.0'
+          ACTUAL_VERSION: ${{ steps.drafter.outputs.version }}
+          ACTUAL_TAG: ${{ steps.drafter.outputs.tag }}
+          NOTES_FILE: ${{ steps.drafter.outputs.notes-file }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_VERSION" = "$EXPECTED_VERSION"
+          test "$ACTUAL_TAG" = "v$EXPECTED_VERSION"
+          for heading in "### Breaking Changes" "### Features" "### Fixes" "### Documentation"; do
+            grep -qxF "$heading" "$NOTES_FILE"
+          done
+          if grep -qxF "### Maintenance" "$NOTES_FILE"; then
+            echo "::error::The fixture has no maintenance commits, so that section must be absent."
+            exit 1
+          fi
+          # The stub separates arguments with \x1f; convert them to spaces before matching.
+          calls="$(tr '\037' ' ' < "$RUNNER_TEMP/gh-calls.log")"
+          case "$calls" in
+            *"release create v$EXPECTED_VERSION --draft "*) ;;
+            *)
+              echo "::error::Expected the draft to be created through gh release create --draft."
+              exit 1
+              ;;
+          esac
+          echo "Self-test passed: version $ACTUAL_VERSION, tag $ACTUAL_TAG, draft created through the stub."
