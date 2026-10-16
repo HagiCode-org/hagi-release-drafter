@@ -1,0 +1,93 @@
+name: Hagi Release Drafter
+description: >-
+  Drafts the next stable vX.Y.Z GitHub release from Conventional Commits since the
+  last stable tag, or updates the existing draft. Never publishes a release.
+
+inputs:
+  version:
+    description: >-
+      Optional stable X.Y.Z to use instead of the version derived from commits.
+      Pre-release values such as 1.4.0-beta.1 and values with a leading v are rejected.
+    required: false
+    default: ''
+  title-template:
+    description: >-
+      Release title. The placeholder {version} is replaced with the bare X.Y.Z version.
+      The tag is always v{version} and cannot be changed.
+    required: false
+    default: 'v{version}'
+  github-token:
+    description: >-
+      Token used for GitHub API calls. The calling job needs contents: write.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  version:
+    description: Resolved stable version without a leading v, for example 1.4.0.
+    value: ${{ steps.version.outputs.version }}
+  tag:
+    description: Release tag, for example v1.4.0.
+    value: ${{ steps.publish.outputs.tag }}
+  notes-file:
+    description: Path of the rendered release body on the runner.
+    value: ${{ steps.notes.outputs.notes-file }}
+  release-url:
+    description: URL of the created or updated draft release.
+    value: ${{ steps.publish.outputs.release-url }}
+
+runs:
+  using: composite
+  steps:
+    # S1: version and notes depend on full history and tags. A shallow clone would
+    # silently produce 0.1.0, so stop before any release data is computed.
+    - name: Refuse shallow checkouts
+      shell: bash
+      run: |
+        if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+          echo "::error::hagi-release-drafter needs full history and tags. Use actions/checkout with fetch-depth: 0 and fetch-tags: true."
+          exit 1
+        fi
+
+    # S2: the bundled script targets Node.js 24.
+    - name: Set up Node.js 24
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+
+    # S3: derive the version, or validate and use the manual override.
+    - name: Compute version
+      id: version
+      shell: bash
+      env:
+        RELEASE_VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$RELEASE_VERSION" ] && ! [[ "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+          echo "::error::The version input must be a stable X.Y.Z (for example 1.4.0). Received: $RELEASE_VERSION"
+          exit 1
+        fi
+        # Assign first: inside echo's arguments a failing node call would not stop the step.
+        version="$(node "${{ github.action_path }}/scripts/release-notes.mjs" version)"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    # S4: render the release body from the same commit range.
+    - name: Render release notes
+      id: notes
+      shell: bash
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        node "${{ github.action_path }}/scripts/release-notes.mjs" notes > "$RUNNER_TEMP/release-notes.md"
+        echo "notes-file=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
+
+    # S5: create or update the draft. The script never publishes.
+    - name: Create or update the draft release
+      id: publish
+      shell: bash
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+        TITLE_TEMPLATE: ${{ inputs.title-template }}
+        NOTES_FILE: ${{ steps.notes.outputs.notes-file }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: bash "${{ github.action_path }}/scripts/publish-draft.sh"
