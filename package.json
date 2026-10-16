@@ -1,16 +1,24 @@
 {
-  "name": "hagi-release-drafter",
+  "name": "@hagicode/hagi-release-drafter",
   "version": "0.1.0",
-  "private": true,
   "description": "Composite GitHub Action that drafts the next stable vX.Y.Z release from Conventional Commits. Never publishes.",
   "type": "module",
+  "files": [
+    "action.yml",
+    "scripts/",
+    "README*.md"
+  ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\""
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "node --test \"test/**/*.test.ts\""
   },
   "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
     "yaml": "2.9.1"
   }
 }

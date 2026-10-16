@@ -6,11 +6,32 @@ import { parse } from 'yaml';
 // Contract checks for the public action. These guard the inputs, outputs, publish safety,
 // shallow-clone ordering, and the permissions documented for consumers.
 
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+/** The subset of a workflow step that the contract checks read. */
+interface Step {
+  id?: string;
+  name?: string;
+  shell?: string;
+  run?: string;
+  uses?: string;
+  env?: Record<string, string>;
+  with?: Record<string, unknown>;
+}
+
+interface ActionFile {
+  inputs: Record<string, { description?: string; required?: boolean; default?: string }>;
+  outputs: Record<string, { description?: string; value: string }>;
+  runs: { using: string; steps: Step[] };
+}
+
+interface WorkflowFile {
+  jobs: Record<string, { permissions?: Record<string, string>; steps: Step[] }>;
+}
+
+const read = (path: string): string => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const raw = read('action.yml');
-const action = parse(raw);
-const steps = action.runs.steps;
-const stepIndex = (pattern) => steps.findIndex((step) => pattern.test(step.run ?? ''));
+const action = parse(raw) as ActionFile;
+const steps: Step[] = action.runs.steps;
+const stepIndex = (pattern: RegExp): number => steps.findIndex((step) => pattern.test(step.run ?? ''));
 
 test('declares a composite action with exactly the documented inputs and defaults', () => {
   assert.equal(action.runs.using, 'composite');
@@ -53,7 +74,7 @@ test('the shallow-clone guard is the first step and runs before any node step', 
   assert.equal(guard, 0, 'the shallow-clone guard must be the first step');
   const firstNode = steps.findIndex((step) => /\bnode\b/.test(step.run ?? ''));
   assert.ok(firstNode > guard, 'a node step runs before the shallow-clone guard');
-  const guardStep = steps[guard].run;
+  const guardStep = steps[guard].run ?? '';
   assert.match(guardStep, /exit 1/);
   assert.match(guardStep, /fetch-depth: 0/);
   assert.match(guardStep, /fetch-tags: true/);
@@ -62,16 +83,16 @@ test('the shallow-clone guard is the first step and runs before any node step', 
 test('the version override is validated before it reaches the script', () => {
   const versionStep = steps.find((step) => step.id === 'version');
   assert.ok(versionStep, 'expected a version step');
-    assert.ok(versionStep.run.includes('^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'), 'expected a stable X.Y.Z pattern');
-  assert.match(versionStep.run, /must be a stable X\.Y\.Z/);
+    assert.ok((versionStep.run ?? '').includes('^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'), 'expected a stable X.Y.Z pattern');
+  assert.match(versionStep.run ?? '', /must be a stable X\.Y\.Z/);
 });
 
 test('the publish step runs the draft script with the required environment', () => {
   const publish = steps.find((step) => step.id === 'publish');
   assert.ok(publish, 'expected a publish step');
-  assert.match(publish.run, /scripts\/publish-draft\.sh/);
+  assert.match(publish.run ?? '', /scripts\/publish-draft\.sh/);
   for (const variable of ['VERSION', 'TITLE_TEMPLATE', 'NOTES_FILE', 'GH_TOKEN', 'GITHUB_REPOSITORY']) {
-    assert.ok(variable in publish.env, `publish step must set ${variable}`);
+    assert.ok(variable in (publish.env ?? {}), `publish step must set ${variable}`);
   }
 });
 
@@ -85,12 +106,12 @@ test('the README documents contents: write, no pull-requests permission, and the
 
 test('this repository drafts its own releases with the local action and never publishes', () => {
   const workflowText = read('.github/workflows/release-draft.yml');
-  const job = parse(workflowText).jobs.draft;
+  const job = (parse(workflowText) as WorkflowFile).jobs.draft;
   assert.deepEqual(job.permissions, { contents: 'write' });
   const checkout = job.steps.find((step) => /^actions\/checkout@/.test(step.uses ?? ''));
   assert.ok(checkout, 'expected a checkout step');
-  assert.equal(checkout.with['fetch-depth'], 0);
-  assert.equal(checkout.with['fetch-tags'], true);
+  assert.equal(checkout.with?.['fetch-depth'], 0);
+  assert.equal(checkout.with?.['fetch-tags'], true);
   assert.ok(job.steps.some((step) => step.uses === './'), 'expected a uses: ./ step running this action');
   assert.doesNotMatch(workflowText, /draft: false|--draft=false|--latest/);
 });

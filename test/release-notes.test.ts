@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bumpVersion, groupCommits, parseCommit, pruneCommits, renderNotes, tierOf } from '../scripts/release-notes.mjs';
+import { bumpVersion, groupCommits, parseCommit, pruneCommits, renderNotes, tierOf } from '../scripts/release-notes.ts';
+import type { ParsedCommit } from '../scripts/release-notes.ts';
 
-const sha = (n) => String(n).repeat(40);
-const commit = (subject, body = '', n = 1) => parseCommit({ sha: sha(n), subject, body });
+const sha = (n: number): string => String(n).repeat(40);
+const commit = (subject: string, body = '', n = 1): ParsedCommit => parseCommit({ sha: sha(n), subject, body });
 /** Candidates in newest-first order: index 0 is the newest commit. */
-const candidates = (count, subjectAt) => Array.from({ length: count }, (_, index) => commit(subjectAt(index), '', index + 1));
-const shas = (commits) => commits.map((entry) => entry.sha);
+const candidates = (count: number, subjectAt: (index: number) => string): ParsedCommit[] => Array.from({ length: count }, (_, index) => commit(subjectAt(index), '', index + 1));
+const shas = (commits: ParsedCommit[]): string[] => commits.map((entry) => entry.sha);
 
 test('parses Conventional Commit headers, scopes, and breaking markers', () => {
   assert.deepEqual(commit('feat(core): add links'), {
@@ -60,7 +61,7 @@ test('renders scoped entries with commit links', () => {
 });
 
 test('assigns priority tiers by first matching rule', () => {
-  const tier = (subject, body = '') => tierOf(commit(subject, body));
+  const tier = (subject: string, body = ''): number => tierOf(commit(subject, body));
   assert.equal(tier('feat!: drop option'), 1);
   assert.equal(tier('chore!: drop option'), 1);
   assert.equal(tier('refactor(core): x', 'BREAKING CHANGE: y'), 1);

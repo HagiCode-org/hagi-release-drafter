@@ -1,4 +1,10 @@
 node_modules/
 
+# Build verification output from npm run build; the action never consumes it
+dist/
+
 # Scratch output, such as a fixture repository built locally for manual runs
 .tmp/
+
+# Local npm pack output
+*.tgz

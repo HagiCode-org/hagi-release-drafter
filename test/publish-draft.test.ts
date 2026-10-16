@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import type { SpawnSyncReturns } from 'node:child_process';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -25,15 +26,15 @@ esac
 exit 0
 `;
 
-let workdir;
-let stubDir;
-let logFile;
-let outputFile;
-let summaryFile;
-let notesFile;
-let sha;
+let workdir: string;
+let stubDir: string;
+let logFile: string;
+let outputFile: string;
+let summaryFile: string;
+let notesFile: string;
+let sha: string;
 
-function git(args) {
+function git(args: string[]): string {
   const result = spawnSync('git', args, { cwd: workdir, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
@@ -63,7 +64,7 @@ afterEach(() => {
   rmSync(workdir, { recursive: true, force: true });
 });
 
-function run({ version = '1.4.0', titleTemplate = 'v{version}', drafts = '' } = {}) {
+function run({ version = '1.4.0', titleTemplate = 'v{version}', drafts = '' }: { version?: string; titleTemplate?: string; drafts?: string } = {}): SpawnSyncReturns<string> {
   const result = spawnSync('bash', [SCRIPT], {
     cwd: workdir,
     encoding: 'utf8',
@@ -83,7 +84,7 @@ function run({ version = '1.4.0', titleTemplate = 'v{version}', drafts = '' } = 
   return result;
 }
 
-function calls() {
+function calls(): string[][] {
   let text = '';
   try {
     text = readFileSync(logFile, 'utf8');
@@ -131,6 +132,7 @@ test('renders the title from a custom template', () => {
   const result = run({ titleTemplate: 'Hagilight v{version}' });
   assert.equal(result.status, 0, result.stderr);
   const create = calls().find((args) => args[1] === 'create');
+  assert.ok(create);
   assert.equal(create[create.indexOf('--title') + 1], 'Hagilight v1.4.0');
 });
 
