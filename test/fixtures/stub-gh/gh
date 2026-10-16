@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# CI stand-in for the GitHub CLI. It records every call and never talks to GitHub, so the
+# self-test cannot create a release. It answers the read calls the action makes.
+{
+  for arg in "$@"; do printf '%s\x1f' "$arg"; done
+  printf '\n'
+} >> "${STUB_GH_LOG:-/dev/null}"
+case "$1 $2" in
+  "api "*) ;;
+  "release view") echo "https://github.com/${GITHUB_REPOSITORY:-owner/repo}/releases/tag/$3" ;;
+esac
+exit 0
