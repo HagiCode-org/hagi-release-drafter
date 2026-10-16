@@ -66,13 +66,15 @@ interface Candidate {
   index: number;
 }
 
-function stableVersion(tag: string): string {
+/** Bare X.Y.Z from a stable vX.Y.Z tag; throws for anything else. */
+export function stableVersion(tag: string): string {
   const match = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(tag);
   if (!match) throw new Error(`Expected a stable release tag vX.Y.Z, received: ${tag}`);
   return match.slice(1).join('.');
 }
 
-function compareVersions(left: string, right: string): number {
+/** Numeric X.Y.Z comparison for sorting. */
+export function compareVersions(left: string, right: string): number {
   const a = left.split('.').map(Number);
   const b = right.split('.').map(Number);
   for (let i = 0; i < 3; i++) {
