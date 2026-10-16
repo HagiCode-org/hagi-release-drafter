@@ -1,0 +1,103 @@
+name: Publish npm
+
+# Publishes @hagicode/hagi-release-drafter with npm trusted publishing (OIDC) and provenance.
+#   push to main            -> <next>-dev.<run>.<attempt>.<sha> under the `dev` dist-tag
+#   stable release published -> the release tag's version under the `latest` dist-tag
+# Drafts, pre-releases, and non-vX.Y.Z tags never publish.
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.event_name }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  publish-dev:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Type-check and test
+        run: |
+          npm run typecheck
+          npm test
+      - name: Resolve development version
+        id: version
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: echo "version=$(node scripts/npm-release.ts dev)" >> "$GITHUB_OUTPUT"
+      - name: Stamp the version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/npm-release.ts stamp "$VERSION"
+      - name: Check the tarball contents
+        run: npm pack --dry-run
+      - name: Publish (dev)
+        run: node scripts/npm-release.ts publish dev
+      - name: Summarize development publish
+        if: always()
+        env:
+          VERSION: ${{ steps.version.outputs.version || 'n/a' }}
+          RESULT: ${{ job.status }}
+        run: |
+          echo "## npm dev publish" >> "$GITHUB_STEP_SUMMARY"
+          echo "@hagicode/hagi-release-drafter $VERSION: $RESULT (dist-tag: dev)." >> "$GITHUB_STEP_SUMMARY"
+
+  publish-release:
+    if: github.event_name == 'release' && github.event.action == 'published' && !github.event.release.prerelease && !github.event.release.draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Verify stable release tag
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: echo "version=$(node scripts/npm-release.ts verify "$RELEASE_TAG")" >> "$GITHUB_OUTPUT"
+      - name: Type-check and test
+        run: |
+          npm run typecheck
+          npm test
+      - name: Stamp the version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/npm-release.ts stamp "$VERSION"
+      - name: Check the tarball contents
+        run: npm pack --dry-run
+      - name: Publish (latest)
+        run: node scripts/npm-release.ts publish latest
+      - name: Summarize stable publish
+        if: always()
+        env:
+          VERSION: ${{ steps.version.outputs.version || 'n/a' }}
+          RESULT: ${{ job.status }}
+        run: |
+          echo "## npm stable publish" >> "$GITHUB_STEP_SUMMARY"
+          echo "@hagicode/hagi-release-drafter $VERSION: $RESULT (dist-tag: latest)." >> "$GITHUB_STEP_SUMMARY"
