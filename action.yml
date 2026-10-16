@@ -1,6 +1,10 @@
 name: Hagi Release Drafter
 description: Drafts the next stable vX.Y.Z GitHub release from Conventional Commits. Never publishes.
 
+branding:
+  icon: package
+  color: purple
+
 inputs:
   version:
     description: >-
