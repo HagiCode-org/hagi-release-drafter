@@ -61,8 +61,46 @@ export function bumpVersion(lastVersion, commits) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
-/** Renders the release body. `repository` (owner/name) turns short SHAs into commit links. */
-export function renderNotes(commits, repository) {
+/**
+ * Priority tier of a commit, first matching rule wins: 1 breaking or `feat`; 2 `fix` or `perf`;
+ * 3 `refactor`, `revert`, or scope `security`; 4 everything else, including untyped subjects.
+ */
+export function tierOf(commit) {
+  if (commit.breaking || commit.type === 'feat') return 1;
+  if (commit.type === 'fix' || commit.type === 'perf') return 2;
+  if (commit.type === 'refactor' || commit.type === 'revert' || commit.scope?.toLowerCase() === 'security') return 3;
+  return 4;
+}
+
+/** Orders candidates so that the first element is omitted first. */
+function omitFirst(a, b) {
+  return (tierOf(b.commit) - tierOf(a.commit))
+    || (Number(a.commit.breaking) - Number(b.commit.breaking))
+    || (Number(a.commit.scope !== null) - Number(b.commit.scope !== null))
+    || (b.index - a.index);
+}
+
+/**
+ * Keeps at most `ceiling` commits. Omits the lowest tier first; inside Tier 1 `feat` before breaking,
+ * then unscoped before scoped, then older before newer. `kept` keeps the input order.
+ */
+export function pruneCommits(commits, ceiling = 100) {
+  const excess = Math.max(0, commits.length - ceiling);
+  const omittedIndexes = new Set(
+    commits.map((commit, index) => ({ commit, index })).sort(omitFirst).slice(0, excess).map(({ index }) => index),
+  );
+  return {
+    kept: commits.filter((_, index) => !omittedIndexes.has(index)),
+    omitted: commits.filter((_, index) => omittedIndexes.has(index)),
+  };
+}
+
+/**
+ * Renders the release body. `repository` (owner/name) turns short SHAs into commit links.
+ * When `options.total` exceeds the rendered count, a footer states the counts and links the changelog:
+ * the compare view when `lastTag` is set, otherwise the commit list at `headSha`.
+ */
+export function renderNotes(commits, repository, options = {}) {
   if (commits.length === 0) return '## Changes\n\n_No changes yet._\n';
   const sections = groupCommits(commits).map(({ title, commits: entries }) => {
     const lines = entries.map((commit) => {
@@ -73,7 +111,16 @@ export function renderNotes(commits, repository) {
     });
     return `### ${title}\n\n${lines.join('\n')}`;
   });
-  return `## Changes\n\n${sections.join('\n\n')}\n`;
+  const footer = options.total > commits.length ? `\n_Showing ${commits.length} of ${options.total} commits._${changelogLink(repository, options)}\n` : '';
+  return `## Changes\n\n${sections.join('\n\n')}\n${footer}`;
+}
+
+function changelogLink(repository, { lastTag, headSha }) {
+  if (!repository) return '';
+  const url = lastTag
+    ? `https://github.com/${repository}/compare/${lastTag}...${headSha}`
+    : `https://github.com/${repository}/commits/${headSha}`;
+  return ` [Full changelog](${url})`;
 }
 
 function git(...args) {
@@ -117,7 +164,13 @@ function main() {
     const override = process.env.RELEASE_VERSION;
     process.stdout.write(override ? stableVersion(`v${override}`) : last ? bumpVersion(last.version, commits) : '0.1.0');
   } else {
-    process.stdout.write(renderNotes(commits, process.env.GITHUB_REPOSITORY));
+    const { kept } = pruneCommits(commits);
+    const headSha = git('rev-parse', 'HEAD').trim();
+    process.stdout.write(renderNotes(kept, process.env.GITHUB_REPOSITORY, {
+      total: commits.length,
+      lastTag: last?.tag ?? null,
+      headSha,
+    }));
   }
 }
 
