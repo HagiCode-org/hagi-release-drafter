@@ -1,0 +1,4 @@
+node_modules/
+
+# Scratch output, such as a fixture repository built locally for manual runs
+.tmp/
