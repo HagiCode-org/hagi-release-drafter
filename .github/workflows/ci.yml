@@ -21,6 +21,22 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # The package ships the compiled CLI, so the build, the tarball contents, and a smoke run of dist/cli.js are checked on every push.
+      - run: npm run build
+      - run: npm pack --dry-run
+      - name: Smoke-test the compiled CLI against the fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/cli-fixture"
+          bash test/fixtures/make-fixture-repo.sh "$fixture"
+          version="$(node dist/cli.js version --github-repository HagiCode-org/hagi-release-drafter "$fixture")"
+          test "$version" = "2.0.0"
+          node dist/cli.js notes --github-repository HagiCode-org/hagi-release-drafter "$fixture" > "$RUNNER_TEMP/cli-notes.md"
+          for heading in "### Breaking Changes" "### Features" "### Fixes" "### Documentation"; do
+            grep -qxF "$heading" "$RUNNER_TEMP/cli-notes.md"
+          done
+          echo "CLI smoke test passed: version $version."
 
   self-test:
     runs-on: ubuntu-latest
