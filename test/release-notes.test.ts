@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bumpVersion, groupCommits, parseCommit, pruneCommits, renderNotes, tierOf } from '../scripts/release-notes.ts';
+import {
+  bumpVersion, groupCommits, lastStableTag, parseCommit, pruneCommits, readCommits, renderNotes, renderSections, resolveRelease, tierOf,
+} from '../scripts/release-notes.ts';
 import type { ParsedCommit } from '../scripts/release-notes.ts';
+import { withFixtureRepo } from './support/fixture.ts';
 
 const sha = (n: number): string => String(n).repeat(40);
 const commit = (subject: string, body = '', n = 1): ParsedCommit => parseCommit({ sha: sha(n), subject, body });
@@ -169,4 +172,36 @@ test('footer is plain text without a repository', () => {
 test('no footer when exactly 100 candidates are rendered', () => {
   const body = renderNotes(candidates(100, () => 'chore: x'), 'HagiCode-org/hagilight', { total: 100, lastTag: 'v1.2.3', headSha: 'abc1234' });
   assert.ok(!body.includes('Showing'));
+});
+
+test('renders sections at level 4 from real fixture commits, one level below a repository block', () => {
+  withFixtureRepo((dir) => {
+    const commits = readCommits(lastStableTag(dir)?.tag, dir);
+    const headings = renderSections(commits, 'HagiCode-org/hagi-release-drafter', { level: 4 })
+      .split('\n')
+      .filter((line) => line.startsWith('#'));
+    assert.deepEqual(headings, ['#### Breaking Changes', '#### Features', '#### Fixes', '#### Documentation']);
+  });
+});
+
+test('labels every entry when a section label is given', () => {
+  const body = renderSections([commit('fix(core): a', '', 1)], undefined, { label: 'hagi-app' });
+  assert.equal(body, '### Fixes\n\n- **hagi-app:** **core:** a (`1111111`)');
+});
+
+test('resolves the fixture release with the same version and notes the action produces', () => {
+  withFixtureRepo((dir) => {
+    const release = resolveRelease({ cwd: dir, repository: 'HagiCode-org/hagi-release-drafter' });
+    assert.equal(release.version, '2.0.0');
+    assert.equal(release.lastTag, 'v1.0.0');
+    assert.equal(release.total, 4);
+    assert.match(release.notes, /^## Changes\n\n### Breaking Changes\n\n- \*\*core:\*\* drop legacy option \(\[`[0-9a-f]{7}`\]\(https:\/\/github\.com\/HagiCode-org\/hagi-release-drafter\/commit\/[0-9a-f]{40}\)\)\n/);
+  });
+});
+
+test('resolveRelease applies a valid override and rejects a prefixed one', () => {
+  withFixtureRepo((dir) => {
+    assert.equal(resolveRelease({ cwd: dir, versionOverride: '3.0.0' }).version, '3.0.0');
+    assert.throws(() => resolveRelease({ cwd: dir, versionOverride: 'v2.0.0' }), /Expected a stable release tag/);
+  });
 });

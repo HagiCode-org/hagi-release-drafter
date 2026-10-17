@@ -43,11 +43,39 @@ export interface PruneResult {
   omitted: ParsedCommit[];
 }
 
-/** Options for the footer. `total` is the full commit count before pruning. */
+/**
+ * Options for the release body. `total` is the full commit count before pruning, used by the footer.
+ * `level` is the heading depth of the `Changes` title; section titles sit one level deeper. Default 2.
+ */
 export interface RenderOptions {
   total?: number;
   lastTag?: string | null;
   headSha?: string;
+  level?: number;
+}
+
+/** Options for a block of sections. `level` is the depth of each section title; `label` prefixes each entry. */
+export interface SectionOptions {
+  level?: number;
+  label?: string;
+}
+
+/** Inputs for resolving one repository. `versionOverride` is a bare stable `X.Y.Z` that replaces the derived version. */
+export interface ReleaseOptions {
+  cwd: string;
+  versionOverride?: string;
+  repository?: string;
+}
+
+/** The release derived for one repository. `commits` is the full range; `kept` is after pruning. */
+export interface ResolvedRelease {
+  version: string;
+  lastTag: string | null;
+  headSha: string;
+  total: number;
+  commits: ParsedCommit[];
+  kept: ParsedCommit[];
+  notes: string;
 }
 
 /** A stable release tag and its bare version, for example `v1.4.0` and `1.4.0`. */
@@ -96,6 +124,9 @@ const SECTIONS = [
   },
   { title: 'Other Changes', matches: () => true },
 ] satisfies SectionRule[];
+
+/** Section titles in display order, for callers that merge sections across repositories. */
+export const SECTION_TITLES: readonly SectionTitle[] = SECTIONS.map(({ title }) => title);
 
 const HEADER = /^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?(?<bang>!)?: (?<description>\S.*)$/;
 
@@ -162,24 +193,49 @@ export function pruneCommits(commits: ParsedCommit[], ceiling = 100): PruneResul
   };
 }
 
+const DEFAULT_LEVEL = 2;
+
 /**
  * Renders the release body. `repository` (owner/name) turns short SHAs into commit links.
+ * `options.level` sets the depth of the `Changes` title, default 2; sections sit one level deeper.
  * When `options.total` exceeds the rendered count, a footer states the counts and links the changelog:
  * the compare view when `lastTag` is set, otherwise the commit list at `headSha`.
  */
 export function renderNotes(commits: ParsedCommit[], repository?: string, options: RenderOptions = {}): string {
-  if (commits.length === 0) return '## Changes\n\n_No changes yet._\n';
-  const sections = groupCommits(commits).map(({ title, commits: entries }) => {
-    const lines = entries.map((commit) => {
-      const short = commit.sha.slice(0, 7);
-      const reference = repository ? `[\`${short}\`](https://github.com/${repository}/commit/${commit.sha})` : `\`${short}\``;
-      const scope = commit.scope ? `**${commit.scope}:** ` : '';
-      return `- ${scope}${commit.description} (${reference})`;
-    });
-    return `### ${title}\n\n${lines.join('\n')}`;
-  });
-  const footer = (options.total ?? 0) > commits.length ? `\n_Showing ${commits.length} of ${options.total} commits._${changelogLink(repository, options)}\n` : '';
-  return `## Changes\n\n${sections.join('\n\n')}\n${footer}`;
+  const level = options.level ?? DEFAULT_LEVEL;
+  const title = `${'#'.repeat(level)} Changes`;
+  if (commits.length === 0) return `${title}\n\n_No changes yet._\n`;
+  const sections = renderSections(commits, repository, { level: level + 1 });
+  return `${title}\n\n${sections}\n${renderFooter(commits.length, options, repository)}`;
+}
+
+/**
+ * The commit-count footer, empty when every commit was rendered. `shown` is the rendered count and `options.total`
+ * the full count. The changelog link goes to the compare view when `options.lastTag` is set. `label` names the
+ * repository in a merged report.
+ */
+export function renderFooter(shown: number, options: RenderOptions, repository?: string, label?: string): string {
+  const prefix = label ? `${label}: ` : '';
+  return (options.total ?? 0) > shown ? `\n_${prefix}Showing ${shown} of ${options.total} commits._${changelogLink(repository, options)}\n` : '';
+}
+
+/**
+ * Renders the section titles and their entries, without the `Changes` title or footer.
+ * `level` is the depth of each section title, default 3. `label` prefixes each entry as `**label:**`.
+ */
+export function renderSections(commits: ParsedCommit[], repository?: string, { level = DEFAULT_LEVEL + 1, label }: SectionOptions = {}): string {
+  return groupCommits(commits)
+    .map(({ title, commits: entries }) => `${'#'.repeat(level)} ${title}\n\n${entries.map((commit) => renderEntry(commit, repository, label)).join('\n')}`)
+    .join('\n\n');
+}
+
+/** One release note bullet: optional label, scope, description, and a commit reference, linked when `repository` is set. */
+export function renderEntry(commit: ParsedCommit, repository?: string, label?: string): string {
+  const short = commit.sha.slice(0, 7);
+  const reference = repository ? `[\`${short}\`](https://github.com/${repository}/commit/${commit.sha})` : `\`${short}\``;
+  const prefix = label ? `**${label}:** ` : '';
+  const scope = commit.scope ? `**${commit.scope}:** ` : '';
+  return `- ${prefix}${scope}${commit.description} (${reference})`;
 }
 
 function changelogLink(repository: string | undefined, { lastTag, headSha }: RenderOptions): string {
@@ -190,13 +246,14 @@ function changelogLink(repository: string | undefined, { lastTag, headSha }: Ren
   return ` [Full changelog](${url})`;
 }
 
-function git(...args: string[]): string {
-  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+/** Runs git in `cwd`. The working directory is a parameter, never process state, so several repositories can be read in one run. */
+function git(cwd: string, ...args: string[]): string {
+  return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
 
-/** Newest stable `vX.Y.Z` tag reachable from HEAD, or null when nothing was released yet. */
-export function lastStableTag(): TagVersion | null {
-  const versions: TagVersion[] = git('tag', '--merged', 'HEAD', '--list', 'v*').split('\n').flatMap((tag) => {
+/** Newest stable `vX.Y.Z` tag reachable from HEAD in `cwd`, or null when nothing was released yet. */
+export function lastStableTag(cwd: string): TagVersion | null {
+  const versions: TagVersion[] = git(cwd, 'tag', '--merged', 'HEAD', '--list', 'v*').split('\n').flatMap((tag) => {
     try {
       return [{ tag, version: stableVersion(tag) }];
     } catch {
@@ -207,10 +264,10 @@ export function lastStableTag(): TagVersion | null {
   return versions.at(-1) ?? null;
 }
 
-/** Commits after `tag` up to HEAD, newest first, with merge commits left out. */
-export function readCommits(tag?: string | null): ParsedCommit[] {
+/** Commits after `tag` up to HEAD in `cwd`, newest first, with merge commits left out. */
+export function readCommits(tag: string | null | undefined, cwd: string): ParsedCommit[] {
   const range = tag ? [`${tag}..HEAD`] : ['HEAD'];
-  return git('log', '--no-merges', '--pretty=format:%H%x1f%s%x1f%b%x1e', ...range)
+  return git(cwd, 'log', '--no-merges', '--pretty=format:%H%x1f%s%x1f%b%x1e', ...range)
     .split('\x1e')
     .map((record) => record.replace(/^\n/, ''))
     .filter(Boolean)
@@ -220,25 +277,33 @@ export function readCommits(tag?: string | null): ParsedCommit[] {
     });
 }
 
+/**
+ * Derives one repository's release: the last stable tag, the commits after it, the version, and the notes.
+ * The action and the CLI both call this, so their output cannot diverge.
+ */
+export function resolveRelease({ cwd, versionOverride, repository }: ReleaseOptions): ResolvedRelease {
+  const last = lastStableTag(cwd);
+  const commits = readCommits(last?.tag, cwd);
+  const headSha = git(cwd, 'rev-parse', 'HEAD').trim();
+  const version = versionOverride ? stableVersion(`v${versionOverride}`) : last ? bumpVersion(last.version, commits) : '0.1.0';
+  const { kept } = pruneCommits(commits);
+  const lastTag = last?.tag ?? null;
+  const notes = renderNotes(kept, repository, { total: commits.length, lastTag, headSha });
+  return { version, lastTag, headSha, total: commits.length, commits, kept, notes };
+}
+
 function main(): void {
   const [command] = process.argv.slice(2);
   if (command !== 'version' && command !== 'notes') {
     throw new Error('Usage: node scripts/release-notes.ts version|notes');
   }
-  const last = lastStableTag();
-  const commits = readCommits(last?.tag);
-  if (command === 'version') {
-    const override = process.env.RELEASE_VERSION;
-    process.stdout.write(override ? stableVersion(`v${override}`) : last ? bumpVersion(last.version, commits) : '0.1.0');
-  } else {
-    const { kept } = pruneCommits(commits);
-    const headSha = git('rev-parse', 'HEAD').trim();
-    process.stdout.write(renderNotes(kept, process.env.GITHUB_REPOSITORY, {
-      total: commits.length,
-      lastTag: last?.tag ?? null,
-      headSha,
-    }));
-  }
+  const release = resolveRelease({
+    cwd: process.cwd(),
+    // Only `version` honours RELEASE_VERSION, as the action always has.
+    versionOverride: command === 'version' ? process.env.RELEASE_VERSION || undefined : undefined,
+    repository: process.env.GITHUB_REPOSITORY,
+  });
+  process.stdout.write(command === 'version' ? release.version : release.notes);
 }
 
 if (process.argv[1]?.endsWith('release-notes.ts')) main();
