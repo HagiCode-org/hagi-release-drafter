@@ -24,7 +24,10 @@
     "pack:check": "npm pack --dry-run"
   },
   "devDependencies": {
+    "@octokit/rest": "22.0.1",
     "@types/node": "24.19.2",
+    "@types/semver": "7.8.0",
+    "semver": "7.8.5",
     "typescript": "5.9.3",
     "yaml": "2.9.1"
   },
