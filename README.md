@@ -23,7 +23,7 @@
 </p>
 
 A composite GitHub Action that drafts the next stable `vX.Y.Z` release from the
-[Conventional Commits](https://www.conventionalcommits.org/) made since the last stable tag.
+[Conventional Commits](https://www.conventionalcommits.org/) made since the last release tag, stable or prerelease.
 It creates a GitHub draft release, or updates the existing draft, and **never publishes it**.
 Publishing the draft stays a manual step in the GitHub UI.
 
@@ -103,15 +103,23 @@ names these inputs, rather than silently producing `0.1.0`.
 
 ## How the version is chosen
 
-1. The base is the newest stable `vX.Y.Z` tag reachable from `HEAD`. Pre-release tags such as
-   `v1.3.0-beta.1` and non-semver tags are ignored.
-2. A breaking change bumps the major version, or the minor version while the major is `0`.
+1. The base is the highest-precedence release tag reachable from `HEAD`, ordered by SemVer 2.0. Prerelease
+   tags such as `v0.1.0-beta.97` count, `v0.1.0-beta.100` ranks above `v0.1.0-beta.97`, and a stable tag ranks
+   above its own prerelease. Tags outside the release-tag grammar are ignored: build metadata (`+`), leading
+   zeros, and non-semver names such as `release-2`.
+2. The version is derived from the base tag's core `X.Y.Z`. A breaking change bumps the major version, or the
+   minor version while the major is `0`.
 3. A `feat` commit bumps the minor version and resets the patch.
 4. Any other set of commits bumps the patch version.
-5. With no stable tag yet, the version is `0.1.0`.
+5. With no release tag reachable from `HEAD`, the version is `0.1.0` and the notes cover the full history.
 6. The `version` input overrides the derived version. The commits in the notes do not change.
 
-Notes always cover the commits after the newest stable tag.
+Notes always cover the commits after the base tag. The CLI's `--start-tag` can pin the base tag of one
+repository, which is the only way to choose a different base.
+
+**Behavior change:** the action and the CLI share this rule. A repository whose reachable tags include a
+prerelease now gets a different range and version than earlier releases of this action gave it. Repositories
+whose only release tags are stable are unaffected.
 
 ## Conventional Commit vocabulary and sections
 
@@ -136,6 +144,9 @@ prefix is omitted when a commit has no scope.
 A release body renders at most **100 commit entries**. Section headings, the footer, and the
 empty-range text do not count. A range with 100 or fewer candidate commits renders every commit.
 
+The CLI reports, for each repository, how many candidate commits there are and how many entries were
+rendered, so a truncated changelog is never silent. The cap itself is unchanged.
+
 Each candidate gets a priority tier from its Conventional Commit type. The first matching rule wins.
 
 | Tier | Matches |
@@ -157,8 +168,8 @@ for example `chore(security): rotate signing key`.
 
 When any commit is omitted, the body ends with a footer such as
 `_Showing 100 of 170 commits._ [Full changelog](https://github.com/owner/repo/compare/v1.3.0...<sha>)`.
-The footer links the compare view from the last stable tag to `HEAD`, or the commit list when no stable
-tag exists.
+The footer links the compare view from the base tag, which may be a stable or prerelease tag, to `HEAD`,
+or the commit list when no release tag exists.
 
 The limit affects only the rendered body. The version is still derived from every candidate commit,
 including the omitted ones.
@@ -227,6 +238,9 @@ hagi-release-drafter notes --github-repository HagiCode-org/hagi-release-drafter
 hagi-release-drafter version ./repos/a ./repos/b
 hagi-release-drafter notes --layout merged --repo ./repos/a --repo https://github.com/HagiCode-org/hagi-release-drafter
 
+# Start one repository's range at a prerelease tag; the other keeps automatic selection
+hagi-release-drafter version --start-tag ./repos/b=v0.1.0-beta.97 ./repos/a ./repos/b
+
 # JSON for other tools, written to a file
 hagi-release-drafter notes --format json --output report.json ./repos/a ./repos/b
 
@@ -244,28 +258,33 @@ hagi-release-drafter version --version 2.0.0 ./repos/a
 | `--output <file>` | Write the result to a file. Stdout stays empty. |
 | `--version <X.Y.Z>` | Use this stable version instead of the derived one. Accepted for one repository only. |
 | `--github-repository <owner/name>` | The identity for commit links. Applies to every input and overrides the `origin` remote. |
+| `--start-tag <input>=<tag>` | Start one repository's range at this release tag instead of the newest one. `<input>` must match a repository exactly as given, such as `./web`, so `web` and `./web` are different inputs. The tag must exist and be reachable from that repository's `HEAD`. Repeatable, one per repository. |
 | `--cache-dir <dir>` | The cache root for URL clones. See below. |
 | `--fail-fast` | Stop after the first failed repository. |
 | `-h`, `--help` | Show usage. |
 
 ### Layouts and formats
 
-- **`per-repo`** (default) starts with a summary table: repository, status, version, last stable tag, and
-  commit count. Each repository then gets a `###` block whose sections sit at `####`. A failed repository
-  has an empty version and a block that states the reason.
+- **`per-repo`** (default) starts with a summary table: repository, status, version, last tag, commit count,
+  and rendered count. The commit count is every candidate commit, and the rendered count is the entries the
+  notes show. Each repository then gets a `###` block whose sections sit at `####`. A failed repository has an
+  empty version and a block that states the reason.
 - **`merged`** gives one `## Changes` section. Its sections hold the entries of every successful repository,
   each labelled with its repository name. Each repository is pruned to one hundred entries before merging.
+  A truncated repository gets a line such as `_hagicode-core: showing 100 of 1324 commits._` before the first
+  section.
 - **`--format json`** prints one object with a `repositories` array in input order. Each row has `input`,
-  `name`, and `status`. Successful rows add `version`, `lastTag`, `commitCount`, and `notes`. Failed rows add
-  `error`. JSON always uses the per-repository shape, so `--layout` does not change it.
+  `name`, and `status`. Successful rows add `version`, `lastTag`, `lastTagSource` (`pinned` or `auto`),
+  `commitCount` (the candidate count), `renderedCount` (the entries in `notes`), `truncated`, and `notes`.
+  Failed rows add `error`. JSON always uses the per-repository shape, so `--layout` does not change it.
 
 ### Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Every repository succeeded. |
-| `1` | At least one repository failed. The reason goes to stderr and into the report. A failed single repository prints nothing to stdout. |
-| `2` | Usage error, and nothing was computed. This covers an unknown subcommand or flag, an invalid version, layout, or format, a rejected input, a duplicate input, and `--version` with several inputs. |
+| `1` | At least one repository failed. The reason goes to stderr and into the report. A failed single repository prints nothing to stdout. A `--start-tag` pin that is missing or unreachable fails only its own repository. |
+| `2` | Usage error, and nothing was computed. This covers an unknown subcommand or flag, an invalid version, layout, or format, a rejected input, a duplicate input, `--version` with several inputs, and a malformed, non-release, duplicate, or unknown `--start-tag` pin. |
 
 ### Cache location
 
