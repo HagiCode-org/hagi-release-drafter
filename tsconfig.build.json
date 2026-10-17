@@ -4,5 +4,7 @@
     "noEmit": false,
     "outDir": "dist",
     "rewriteRelativeImportExtensions": true
-  }
+  },
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["scripts/npm-release.ts", "test/**/*.ts"]
 }

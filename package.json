@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "description": "Composite GitHub Action that drafts the next stable vX.Y.Z release from Conventional Commits. Never publishes.",
   "type": "module",
+  "bin": {
+    "hagi-release-drafter": "dist/cli.js"
+  },
   "files": [
     "action.yml",
+    "dist/",
     "scripts/",
     "!scripts/npm-release.ts",
     "README*.md"
@@ -15,6 +19,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "node --test \"test/**/*.test.ts\"",
     "pack:check": "npm pack --dry-run"
   },
