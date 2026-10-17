@@ -13,6 +13,15 @@
 
 # hagi-release-drafter
 
+<p>
+  <a href="https://www.npmjs.com/package/@hagicode/hagi-release-drafter"><img alt="npm version" src="https://img.shields.io/npm/v/@hagicode/hagi-release-drafter?logo=npm"></a>
+  <a href="https://www.npmjs.com/package/@hagicode/hagi-release-drafter"><img alt="npm downloads" src="https://img.shields.io/npm/dm/@hagicode/hagi-release-drafter?logo=npm"></a>
+  <a href="https://github.com/HagiCode-org/hagi-release-drafter/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi-release-drafter/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI"></a>
+  <a href="https://github.com/HagiCode-org/hagi-release-drafter/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/HagiCode-org/hagi-release-drafter?logo=github"></a>
+  <a href="https://nodejs.org/"><img alt="Node.js >=24" src="https://img.shields.io/node/v/@hagicode/hagi-release-drafter?logo=nodedotjs&logoColor=white"></a>
+  <a href="https://www.conventionalcommits.org/"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white"></a>
+</p>
+
 마지막 안정 태그 이후에 작성된 [Conventional Commits](https://www.conventionalcommits.org/) 커밋을 기준으로 다음 안정 버전 `vX.Y.Z`의 릴리스 초안을 작성하는 복합 GitHub Action입니다. GitHub 초안 릴리스를 만들거나 기존 초안을 업데이트하며, **절대 게시하지 않습니다**. 초안을 게시하는 작업은 GitHub UI에서 수동으로 진행해야 합니다.
 
 이 Action은 의존성이 없는 Node.js 스크립트를 실행하므로 빌드 단계나 번들된 아티팩트가 필요하지 않습니다.

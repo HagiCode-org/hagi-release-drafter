@@ -13,6 +13,15 @@
 
 # hagi-release-drafter
 
+<p>
+  <a href="https://www.npmjs.com/package/@hagicode/hagi-release-drafter"><img alt="npm version" src="https://img.shields.io/npm/v/@hagicode/hagi-release-drafter?logo=npm"></a>
+  <a href="https://www.npmjs.com/package/@hagicode/hagi-release-drafter"><img alt="npm downloads" src="https://img.shields.io/npm/dm/@hagicode/hagi-release-drafter?logo=npm"></a>
+  <a href="https://github.com/HagiCode-org/hagi-release-drafter/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi-release-drafter/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI"></a>
+  <a href="https://github.com/HagiCode-org/hagi-release-drafter/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/HagiCode-org/hagi-release-drafter?logo=github"></a>
+  <a href="https://nodejs.org/"><img alt="Node.js >=24" src="https://img.shields.io/node/v/@hagicode/hagi-release-drafter?logo=nodedotjs&logoColor=white"></a>
+  <a href="https://www.conventionalcommits.org/"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white"></a>
+</p>
+
 最後の安定タグ以降の [Conventional Commits](https://www.conventionalcommits.org/) に基づいて、次の安定版 `vX.Y.Z` のリリースのドラフトを作成する複合 GitHub Action です。GitHub のドラフトリリースを新規作成するか、既存のドラフトを更新します。**公開は決して行いません**。ドラフトの公開は GitHub の UI での手動操作として残ります。
 
 この Action は依存関係のない Node.js スクリプトを実行するため、ビルド手順も同梱のアーティファクトも不要です。

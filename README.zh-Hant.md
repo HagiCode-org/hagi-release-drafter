@@ -13,6 +13,15 @@
 
 # hagi-release-drafter
 
+<p>
+  <a href="https://www.npmjs.com/package/@hagicode/hagi-release-drafter"><img alt="npm version" src="https://img.shields.io/npm/v/@hagicode/hagi-release-drafter?logo=npm"></a>
+  <a href="https://www.npmjs.com/package/@hagicode/hagi-release-drafter"><img alt="npm downloads" src="https://img.shields.io/npm/dm/@hagicode/hagi-release-drafter?logo=npm"></a>
+  <a href="https://github.com/HagiCode-org/hagi-release-drafter/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/HagiCode-org/hagi-release-drafter/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI"></a>
+  <a href="https://github.com/HagiCode-org/hagi-release-drafter/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/HagiCode-org/hagi-release-drafter?logo=github"></a>
+  <a href="https://nodejs.org/"><img alt="Node.js >=24" src="https://img.shields.io/node/v/@hagicode/hagi-release-drafter?logo=nodedotjs&logoColor=white"></a>
+  <a href="https://www.conventionalcommits.org/"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white"></a>
+</p>
+
 一個複合 GitHub Action，用於根據自上一個穩定標籤以來的 [Conventional Commits](https://www.conventionalcommits.org/) 提交，草擬下一個穩定版本 `vX.Y.Z` 的發布。它會建立 GitHub 草稿發布，或更新既有的草稿，**從不發布**。發布草稿仍需在 GitHub 介面中手動完成。
 
 該 Action 執行一個無相依套件的 Node.js 腳本，因此不需要建置步驟，也沒有打包產物。
