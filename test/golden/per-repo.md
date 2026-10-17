@@ -1,26 +1,14 @@
-| Repository | Status | Version | Last stable tag | Commits |
-| --- | --- | --- | --- | --- |
-| HagiCode-org/hagi-release-drafter | ok | 2.0.0 | v1.0.0 | 4 |
-| shallow | failed | | | |
-| long | ok | 1.0.1 | v1.0.0 | 101 |
+| Repository | Status | Version | Last tag | Commits | Rendered |
+| --- | --- | --- | --- | --- | --- |
+| HagiCode-org/hagi-release-drafter | ok | 2.0.0 | v1.1.0-beta.1 | 1 | 1 |
+| shallow | failed | | | | |
+| long | ok | 1.0.1 | v1.0.0 | 101 | 100 |
 
 ### HagiCode-org/hagi-release-drafter
 
 #### Breaking Changes
 
 - **core:** drop legacy option ([`f7657f5`](https://github.com/HagiCode-org/hagi-release-drafter/commit/f7657f509be5b552bb71c9d3e9613049329b00ed))
-
-#### Features
-
-- **cli:** add flag ([`6db7eac`](https://github.com/HagiCode-org/hagi-release-drafter/commit/6db7eacdbce21536350eb40968ef75afe53ed776))
-
-#### Fixes
-
-- **core:** repair parser ([`7f1a695`](https://github.com/HagiCode-org/hagi-release-drafter/commit/7f1a69552ba50fc1838ae77dcc6c8842bfd6f000))
-
-#### Documentation
-
-- update readme ([`15c26d5`](https://github.com/HagiCode-org/hagi-release-drafter/commit/15c26d5d8c7f81b88b5d352306f654c58b122357))
 
 ### shallow
 

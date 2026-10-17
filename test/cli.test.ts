@@ -171,8 +171,11 @@ test('JSON output parses, keeps input order, and gives the fields of an ok row a
     assert.equal(ok.input, fixture);
     assert.equal(ok.status, 'ok');
     assert.equal(ok.version, '2.0.0');
-    assert.equal(ok.lastTag, 'v1.0.0');
-    assert.equal(ok.commitCount, 4);
+    assert.equal(ok.lastTag, 'v1.1.0-beta.1');
+    assert.equal(ok.lastTagSource, 'auto');
+    assert.equal(ok.commitCount, 1);
+    assert.equal(ok.renderedCount, 1);
+    assert.equal(ok.truncated, false);
     assert.match(String(ok.notes), /^## Changes\n/);
     assert.equal(typeof ok.name, 'string');
 

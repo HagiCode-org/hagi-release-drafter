@@ -8,12 +8,21 @@ import { assertNoDuplicates, renderMerged, renderPerRepo, runRepositories } from
 import type { FailedRow, OkRow } from '../scripts/lib/aggregate.ts';
 import { classifyInput, UsageError } from '../scripts/lib/repo-input.ts';
 import type { RepositoryInput } from '../scripts/lib/repo-input.ts';
-import { withFixtureRepo, withLongHistoryRepo, withShallowClone } from './support/fixture.ts';
+import { withFixtureRepo, withHistory, withLongHistoryRepo, withShallowClone } from './support/fixture.ts';
+import type { HistoryStep } from './support/fixture.ts';
 
 const local = (path: string): RepositoryInput => classifyInput(path, '/');
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8' });
 const GOLDEN_PER_REPO = new URL('./golden/per-repo.md', import.meta.url);
 const HELLO_URL = 'https://github.com/HagiCode-org/hagi-release-drafter';
+/** A stable-tagged history with a fix, docs, a feature, and a breaking change after `v1.0.0`, so each common section has an entry. */
+const STABLE_HISTORY: HistoryStep[] = [
+  { subject: 'chore: initial commit', tag: 'v1.0.0' },
+  { subject: 'fix(core): repair parser' },
+  { subject: 'docs: update readme' },
+  { subject: 'feat(cli): add flag' },
+  { subject: 'fix(core)!: drop legacy option' },
+];
 
 test('one healthy repository and one shallow clone give an ok row and a failed row, in input order', () => {
   withFixtureRepo((fixture) => withShallowClone(fixture, (shallow) => {
@@ -23,7 +32,8 @@ test('one healthy repository and one shallow clone give an ok row and a failed r
     const ok = rows[0] as OkRow;
     assert.equal(ok.status, 'ok');
     assert.equal(ok.release.version, '2.0.0');
-    assert.equal(ok.release.total, 4);
+    assert.equal(ok.release.lastTag, 'v1.1.0-beta.1');
+    assert.equal(ok.release.total, 1);
 
     const failed = rows[1] as FailedRow;
     assert.equal(failed.status, 'failed');
@@ -82,7 +92,7 @@ test('the per-repo layout matches the golden file: an ok row, a failed row, and 
 });
 
 test('the merged layout shares sections, labels each entry, keeps input order, and prunes each repository', () => {
-  withFixtureRepo((first) => withFixtureRepo((second) => withLongHistoryRepo(101, (long) => {
+  withHistory(STABLE_HISTORY, (first) => withHistory(STABLE_HISTORY, (second) => withLongHistoryRepo(101, (long) => {
     git(first, 'remote', 'add', 'origin', 'https://github.com/HagiCode-org/hagi-release-drafter.git');
     git(second, 'remote', 'add', 'origin', 'https://github.com/HagiCode-org/other.git');
     const markdown = renderMerged(runRepositories([local(first), local(second), local(long)]));

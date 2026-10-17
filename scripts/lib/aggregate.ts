@@ -19,6 +19,8 @@ export interface RunOptions {
   githubRepository?: string;
   /** The `--version` override. Only valid for a single repository. */
   versionOverride?: string;
+  /** Pinned start tags, keyed by the input exactly as given. An input without an entry uses automatic selection. */
+  startTags?: ReadonlyMap<string, string>;
 }
 
 export interface OkRow {
@@ -81,25 +83,38 @@ export function renderMerged(rows: Row[]): string {
   });
   const footers = ok.map(({ name, repository, release }) => renderFooter(release.kept.length, footerOptions(release), repository ?? undefined, name)).join('');
   const failures = failed.map((row) => `- **${row.name}:** ${row.error}`);
+  // One line per truncated repository, before the first shared section, so a partial changelog is never mistaken for a full one.
+  const notices = ok
+    .filter(({ release }) => renderedCount(release) < release.total)
+    .map(({ name, release }) => `_${name}: showing ${renderedCount(release)} of ${release.total} commits._`);
   return [
     renderSummary(rows),
     '',
     ...(failures.length > 0 ? ['**Failed:**', '', ...failures, ''] : []),
     '## Changes',
     '',
+    ...notices.flatMap((notice) => [notice, '']),
     sections.length > 0 ? sections.join('\n\n') : '_No changes yet._',
     footers,
   ].join('\n');
 }
 
-/** The summary table: one row per input in input order. Failed rows have an empty version and no commit count. */
+/** Entries rendered after pruning. `total` stays the candidate count, so `renderedCount < total` means truncation. */
+function renderedCount(release: ResolvedRelease): number {
+  return release.kept.length;
+}
+
+/**
+ * The summary table: one row per input in input order. `Commits` is the candidate count and `Rendered` the entries
+ * shown, so a truncated repository is visible in the table. Failed rows have empty cells.
+ */
 export function renderSummary(rows: Row[]): string {
   const table = rows.map((row) => (row.status === 'ok'
-    ? `| ${cell(row.name)} | ok | ${row.release.version} | ${row.release.lastTag ?? 'none'} | ${row.release.total} |`
-    : `| ${cell(row.name)} | failed | | | |`));
+    ? `| ${cell(row.name)} | ok | ${row.release.version} | ${row.release.lastTag ?? 'none'} | ${row.release.total} | ${renderedCount(row.release)} |`
+    : `| ${cell(row.name)} | failed | | | | |`));
   return [
-    '| Repository | Status | Version | Last stable tag | Commits |',
-    '| --- | --- | --- | --- | --- |',
+    '| Repository | Status | Version | Last tag | Commits | Rendered |',
+    '| --- | --- | --- | --- | --- | --- |',
     ...table,
   ].join('\n');
 }
@@ -123,7 +138,8 @@ function cell(text: string): string {
 
 /**
  * The JSON report. It always uses the per-repository shape, whatever the Markdown layout, so consumers parse one
- * structure. Rows keep input order. The output has no timestamps.
+ * structure. Rows keep input order. The output has no timestamps. `commitCount` is the candidate count, `renderedCount`
+ * the entries in `notes`, and `truncated` is true exactly when some candidates were omitted.
  */
 export function toJson(rows: Row[]): string {
   const repositories = rows.map((row) => (row.status === 'ok'
@@ -133,7 +149,10 @@ export function toJson(rows: Row[]): string {
       status: 'ok',
       version: row.release.version,
       lastTag: row.release.lastTag,
+      lastTagSource: row.release.lastTagSource,
       commitCount: row.release.total,
+      renderedCount: renderedCount(row.release),
+      truncated: renderedCount(row.release) < row.release.total,
       notes: row.release.notes,
     }
     : {
@@ -163,7 +182,12 @@ function resolveRepository(input: RepositoryInput, options: RunOptions): Row {
   const name = repository ?? (input.kind === 'url' ? `${input.owner}/${input.name}` : basename(input.path));
   try {
     const cwd = input.kind === 'url' ? ensureCachedClone(input, { cacheDir: options.cacheDir }) : localCheckout(input.path);
-    const release = resolveRelease({ cwd, versionOverride: options.versionOverride, repository: repository ?? undefined });
+    const release = resolveRelease({
+      cwd,
+      versionOverride: options.versionOverride,
+      repository: repository ?? undefined,
+      startTag: options.startTags?.get(input.input),
+    });
     return { status: 'ok', input: input.input, name, repository, release };
   } catch (error) {
     return { status: 'failed', input: input.input, name, error: reasonOf(error) };

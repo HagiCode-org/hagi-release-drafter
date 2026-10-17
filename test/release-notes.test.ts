@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  bumpVersion, groupCommits, lastStableTag, parseCommit, pruneCommits, readCommits, renderNotes, renderSections, resolveRelease, tierOf,
+  bumpVersion, groupCommits, parseCommit, pruneCommits, readCommits, renderNotes, renderSections, resolveRelease, selectBaseTag, tierOf,
 } from '../scripts/release-notes.ts';
 import type { ParsedCommit } from '../scripts/release-notes.ts';
 import { withFixtureRepo } from './support/fixture.ts';
@@ -176,11 +176,11 @@ test('no footer when exactly 100 candidates are rendered', () => {
 
 test('renders sections at level 4 from real fixture commits, one level below a repository block', () => {
   withFixtureRepo((dir) => {
-    const commits = readCommits(lastStableTag(dir)?.tag, dir);
+    const commits = readCommits(selectBaseTag(dir)?.tag, dir);
     const headings = renderSections(commits, 'HagiCode-org/hagi-release-drafter', { level: 4 })
       .split('\n')
       .filter((line) => line.startsWith('#'));
-    assert.deepEqual(headings, ['#### Breaking Changes', '#### Features', '#### Fixes', '#### Documentation']);
+    assert.deepEqual(headings, ['#### Breaking Changes']);
   });
 });
 
@@ -193,8 +193,9 @@ test('resolves the fixture release with the same version and notes the action pr
   withFixtureRepo((dir) => {
     const release = resolveRelease({ cwd: dir, repository: 'HagiCode-org/hagi-release-drafter' });
     assert.equal(release.version, '2.0.0');
-    assert.equal(release.lastTag, 'v1.0.0');
-    assert.equal(release.total, 4);
+    assert.equal(release.lastTag, 'v1.1.0-beta.1');
+    assert.equal(release.lastTagSource, 'auto');
+    assert.equal(release.total, 1);
     assert.match(release.notes, /^## Changes\n\n### Breaking Changes\n\n- \*\*core:\*\* drop legacy option \(\[`[0-9a-f]{7}`\]\(https:\/\/github\.com\/HagiCode-org\/hagi-release-drafter\/commit\/[0-9a-f]{40}\)\)\n/);
   });
 });
