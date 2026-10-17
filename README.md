@@ -170,6 +170,110 @@ Creating these tags is part of the action's own release process, not of a consum
 - It does not delete drafts. When several drafts exist it edits the first one that GitHub returns,
   so a maintainer who keeps several drafts must clean them up manually.
 
+## Local preview with the CLI
+
+The same engine runs on your machine as `hagi-release-drafter`, so you can preview the version and
+release notes before a release. The CLI reads git history only. It never publishes, never calls the
+GitHub API, and needs no token. Its only writes go to stdout, stderr, the `--output` file, and the URL cache.
+
+### Run and install
+
+The CLI needs Node.js 24 or later and git. From a clone of this repository, build the compiled CLI once:
+
+```bash
+npm ci
+npm run build
+node dist/cli.js --help
+```
+
+To put the command on your `PATH`, pack the package and install the tarball:
+
+```bash
+npm pack
+npm install -g ./hagicode-hagi-release-drafter-0.1.0.tgz
+hagi-release-drafter --help
+```
+
+### Subcommands and repository inputs
+
+| Command | Prints |
+| --- | --- |
+| `hagi-release-drafter version` | The next stable version, for example `1.4.0`. |
+| `hagi-release-drafter notes` | The release body. For one repository in the default output it is byte-identical to the action's notes file. |
+
+With no input, the current directory is used when it is a git working tree. Otherwise give one or more
+inputs, either as `--repo <input>` (repeatable) or as positional arguments. An input is a local path to a
+git working tree, or an HTTPS `github.com` URL, with or without a `.git` suffix. Inputs are processed in
+order, one repository at a time.
+
+```bash
+# The current repository
+hagi-release-drafter version
+hagi-release-drafter notes
+
+# Commit links when the repository has no github.com origin remote
+hagi-release-drafter notes --github-repository HagiCode-org/hagi-release-drafter
+
+# Several repositories in one report
+hagi-release-drafter version ./repos/a ./repos/b
+hagi-release-drafter notes --layout merged --repo ./repos/a --repo https://github.com/HagiCode-org/hagi-release-drafter
+
+# JSON for other tools, written to a file
+hagi-release-drafter notes --format json --output report.json ./repos/a ./repos/b
+
+# An explicit version, for one repository only
+hagi-release-drafter version --version 2.0.0 ./repos/a
+```
+
+### Flags
+
+| Flag | Meaning |
+| --- | --- |
+| `--repo <input>` | A repository input. Repeatable. |
+| `--layout <name>` | `per-repo` (default) or `merged`. Changes the Markdown report only. |
+| `--format <name>` | `markdown` (default) or `json`. |
+| `--output <file>` | Write the result to a file. Stdout stays empty. |
+| `--version <X.Y.Z>` | Use this stable version instead of the derived one. Accepted for one repository only. |
+| `--github-repository <owner/name>` | The identity for commit links. Applies to every input and overrides the `origin` remote. |
+| `--cache-dir <dir>` | The cache root for URL clones. See below. |
+| `--fail-fast` | Stop after the first failed repository. |
+| `-h`, `--help` | Show usage. |
+
+### Layouts and formats
+
+- **`per-repo`** (default) starts with a summary table: repository, status, version, last stable tag, and
+  commit count. Each repository then gets a `###` block whose sections sit at `####`. A failed repository
+  has an empty version and a block that states the reason.
+- **`merged`** gives one `## Changes` section. Its sections hold the entries of every successful repository,
+  each labelled with its repository name. Each repository is pruned to one hundred entries before merging.
+- **`--format json`** prints one object with a `repositories` array in input order. Each row has `input`,
+  `name`, and `status`. Successful rows add `version`, `lastTag`, `commitCount`, and `notes`. Failed rows add
+  `error`. JSON always uses the per-repository shape, so `--layout` does not change it.
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Every repository succeeded. |
+| `1` | At least one repository failed. The reason goes to stderr and into the report. A failed single repository prints nothing to stdout. |
+| `2` | Usage error, and nothing was computed. This covers an unknown subcommand or flag, an invalid version, layout, or format, a rejected input, a duplicate input, and `--version` with several inputs. |
+
+### Cache location
+
+A URL input is cloned with full history and all tags to `<root>/repos/<owner>/<name>`. The root is
+`--cache-dir` when given, otherwise `$XDG_CACHE_HOME/hagi-release-drafter`, otherwise
+`~/.cache/hagi-release-drafter`. Later runs fetch tags and history into the same clone. Nothing is evicted
+automatically, so delete a clone directory to reclaim space. Private repositories use the git credentials you
+already have. A URL that contains a username or password is rejected.
+
+### What the CLI does not do
+
+- It does not publish, create, or edit a release, and it does not call the GitHub API. It reads no token,
+  and `GH_TOKEN` and `GITHUB_TOKEN` have no effect.
+- It does not change any local repository you give it. Refs, tags, and the working tree stay as they were.
+- The action does not use the CLI. It still runs `scripts/release-notes.ts` directly on Node.js 24, so it
+  needs no build step. The npm package ships the compiled `dist/cli.js`, built from the same sources.
+
 ## Runner requirements
 
 - GitHub-hosted runners include `gh` and `git`. On a self-hosted runner, install the GitHub CLI.
