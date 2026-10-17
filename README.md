@@ -144,6 +144,19 @@ commits keep git's newest-first order.
 Each entry is rendered as `- **scope:** description ([`short-sha`](commit-url))`. The scope
 prefix is omitted when a commit has no scope.
 
+### Leaving a commit out of the notes
+
+A commit whose **subject** (its title line) contains `skip-release-notes` is left out of the release notes. The match
+is a case-insensitive substring, for example `docs: reword intro (skip-release-notes)`. The marker is always on; no input,
+flag, or configuration turns it on or off. Only the subject is inspected, so a body or footer that mentions the phrase
+does not hide a commit.
+
+A skipped commit is treated as if it were not in the range:
+
+- It is not rendered, and it is not counted toward the entry limit, the `Showing N of M commits` footer, or the JSON `commitCount`.
+- It does not change the version. A skipped `feat:` does not cause a minor bump; the version is derived as if the commit were absent.
+- When every commit in the range is skipped, the notes show `_No changes yet._`.
+
 ## Entry limit
 
 A release body renders at most **100 commit entries**. Section headings, the footer, and the
