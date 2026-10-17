@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { parse } from 'yaml';
-import { devVersion, nextBaseVersion, verifyTag, type ReleaseInfo } from '../scripts/npm-release.ts';
+import { devVersion, isPublishVersion, nextBaseVersion, verifyTag, type ReleaseInfo } from '../scripts/npm-release.ts';
 
 const release = (tag_name: string, state: 'published' | 'draft' | 'prerelease' = 'published'): ReleaseInfo => ({
   tag_name,
@@ -67,4 +67,11 @@ test('the publish workflow grants OIDC, runs only for main pushes and stable rel
 test('the maintainer release script is kept out of the published tarball', () => {
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { files: string[] };
   assert.ok(manifest.files.includes('!scripts/npm-release.ts'));
+});
+
+test('isPublishVersion accepts stable and dev versions only', () => {
+  for (const ok of ['0.1.0', '1.20.3', '0.1.3-dev.42.2.abc1234']) assert.equal(isPublishVersion(ok), true, ok);
+  for (const bad of ['v1.0.0', ' 1.0.0', '1.0', '01.0.0', '1.0.0-beta.1', '1.0.0+build', '1.0.0-dev.0.1.abc1234', '1.0.0-dev.1.1.ABC1234', '1.0.0-dev.1.1.abc123', '1.0.0-dev.1.1.abc1234.5']) {
+    assert.equal(isPublishVersion(bad), false, bad);
+  }
 });
