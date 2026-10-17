@@ -114,8 +114,13 @@ names these inputs, rather than silently producing `0.1.0`.
 5. With no release tag reachable from `HEAD`, the version is `0.1.0` and the notes cover the full history.
 6. The `version` input overrides the derived version. The commits in the notes do not change.
 
-Notes always cover the commits after the base tag. The CLI's `--start-tag` can pin the base tag of one
+Notes always cover the commits after the base tag, up to the end of the range. The end is `HEAD` unless
+the CLI's `--end-tag` ends one repository's range at a release tag. The CLI's `--start-tag` can pin the base tag of one
 repository, which is the only way to choose a different base.
+
+**Bounded ranges.** A repository with `--end-tag` takes its version from the end tag's `X.Y.Z` core, not from the
+bump policy, because its range describes a release that already exists. For example, `v0.1.0-beta.95` gives `0.1.0`.
+`--version` still overrides it. Without `--end-tag`, the rules above apply unchanged.
 
 **Behavior change:** the action and the CLI share this rule. A repository whose reachable tags include a
 prerelease now gets a different range and version than earlier releases of this action gave it. Repositories
@@ -241,6 +246,9 @@ hagi-release-drafter notes --layout merged --repo ./repos/a --repo https://githu
 # Start one repository's range at a prerelease tag; the other keeps automatic selection
 hagi-release-drafter version --start-tag ./repos/b=v0.1.0-beta.97 ./repos/a ./repos/b
 
+# Notes for a release that is already cut: only the commits between two release tags
+hagi-release-drafter notes --start-tag ./hagicode-core=v0.1.0-beta.94 --end-tag ./hagicode-core=v0.1.0-beta.95 ./hagicode-core
+
 # JSON for other tools, written to a file
 hagi-release-drafter notes --format json --output report.json ./repos/a ./repos/b
 
@@ -259,6 +267,7 @@ hagi-release-drafter version --version 2.0.0 ./repos/a
 | `--version <X.Y.Z>` | Use this stable version instead of the derived one. Accepted for one repository only. |
 | `--github-repository <owner/name>` | The identity for commit links. Applies to every input and overrides the `origin` remote. |
 | `--start-tag <input>=<tag>` | Start one repository's range at this release tag instead of the newest one. `<input>` must match a repository exactly as given, such as `./web`, so `web` and `./web` are different inputs. The tag must exist and be reachable from that repository's `HEAD`. Repeatable, one per repository. |
+| `--end-tag <input>=<tag>` | End one repository's range at this release tag, such as `v0.1.0-beta.95`, instead of `HEAD`. The same rules as `--start-tag` apply, and the tag must exist and be reachable from that repository's `HEAD`. With no `--start-tag`, the start is the newest release tag below the end. The version is then the tag's `X.Y.Z` core, unless `--version` is given. Repeatable, one per repository. |
 | `--cache-dir <dir>` | The cache root for URL clones. See below. |
 | `--fail-fast` | Stop after the first failed repository. |
 | `-h`, `--help` | Show usage. |
@@ -275,7 +284,7 @@ hagi-release-drafter version --version 2.0.0 ./repos/a
   section.
 - **`--format json`** prints one object with a `repositories` array in input order. Each row has `input`,
   `name`, and `status`. Successful rows add `version`, `lastTag`, `lastTagSource` (`pinned` or `auto`),
-  `commitCount` (the candidate count), `renderedCount` (the entries in `notes`), `truncated`, and `notes`.
+  `endTag` (the end tag of a bounded range, otherwise `null`), `commitCount` (the candidate count), `renderedCount` (the entries in `notes`), `truncated`, and `notes`.
   Failed rows add `error`. JSON always uses the per-repository shape, so `--layout` does not change it.
 
 ### Exit codes
@@ -283,8 +292,8 @@ hagi-release-drafter version --version 2.0.0 ./repos/a
 | Code | Meaning |
 | --- | --- |
 | `0` | Every repository succeeded. |
-| `1` | At least one repository failed. The reason goes to stderr and into the report. A failed single repository prints nothing to stdout. A `--start-tag` pin that is missing or unreachable fails only its own repository. |
-| `2` | Usage error, and nothing was computed. This covers an unknown subcommand or flag, an invalid version, layout, or format, a rejected input, a duplicate input, `--version` with several inputs, and a malformed, non-release, duplicate, or unknown `--start-tag` pin. |
+| `1` | At least one repository failed. The reason goes to stderr and into the report. A failed single repository prints nothing to stdout. A `--start-tag` pin that is missing or unreachable fails only its own repository. An `--end-tag` that is missing or not reachable from `HEAD`, or a start tag that is not an ancestor of its end tag, fails only its own repository too. |
+| `2` | Usage error, and nothing was computed. This covers an unknown subcommand or flag, an invalid version, layout, or format, a rejected input, a duplicate input, `--version` with several inputs, and a malformed, non-release, duplicate, or unknown `--start-tag` or `--end-tag` value. |
 
 ### Cache location
 
