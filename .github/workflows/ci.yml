@@ -33,8 +33,13 @@ jobs:
           version="$(node dist/cli.js version --github-repository HagiCode-org/hagi-release-drafter "$fixture")"
           test "$version" = "2.0.0"
           node dist/cli.js notes --github-repository HagiCode-org/hagi-release-drafter "$fixture" > "$RUNNER_TEMP/cli-notes.md"
-          for heading in "### Breaking Changes" "### Features" "### Fixes" "### Documentation"; do
-            grep -qxF "$heading" "$RUNNER_TEMP/cli-notes.md"
+          # The base is the newest reachable release tag (v1.1.0-beta.1), so only the one breaking commit after it is listed.
+          grep -qxF "### Breaking Changes" "$RUNNER_TEMP/cli-notes.md"
+          for heading in "### Features" "### Fixes" "### Documentation" "### Maintenance"; do
+            if grep -qxF "$heading" "$RUNNER_TEMP/cli-notes.md"; then
+              echo "::error::$heading must be absent: its commits precede the base tag."
+              exit 1
+            fi
           done
           echo "CLI smoke test passed: version $version."
 
@@ -80,13 +85,14 @@ jobs:
           set -euo pipefail
           test "$ACTUAL_VERSION" = "$EXPECTED_VERSION"
           test "$ACTUAL_TAG" = "v$EXPECTED_VERSION"
-          for heading in "### Breaking Changes" "### Features" "### Fixes" "### Documentation"; do
-            grep -qxF "$heading" "$NOTES_FILE"
+          # The base is the newest reachable release tag (v1.1.0-beta.1), so only the one breaking commit after it is listed.
+          grep -qxF "### Breaking Changes" "$NOTES_FILE"
+          for heading in "### Features" "### Fixes" "### Documentation" "### Maintenance"; do
+            if grep -qxF "$heading" "$NOTES_FILE"; then
+              echo "::error::$heading must be absent: its commits precede the base tag."
+              exit 1
+            fi
           done
-          if grep -qxF "### Maintenance" "$NOTES_FILE"; then
-            echo "::error::The fixture has no maintenance commits, so that section must be absent."
-            exit 1
-          fi
           # The stub separates arguments with \x1f; convert them to spaces before matching.
           calls="$(tr '\037' ' ' < "$RUNNER_TEMP/gh-calls.log")"
           case "$calls" in
