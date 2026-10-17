@@ -21,6 +21,8 @@ export interface RunOptions {
   versionOverride?: string;
   /** Pinned start tags, keyed by the input exactly as given. An input without an entry uses automatic selection. */
   startTags?: ReadonlyMap<string, string>;
+  /** Bounded end tags, keyed by the input exactly as given. An input without an entry ends at HEAD. */
+  endTags?: ReadonlyMap<string, string>;
 }
 
 export interface OkRow {
@@ -119,8 +121,8 @@ export function renderSummary(rows: Row[]): string {
   ].join('\n');
 }
 
-function footerOptions(release: ResolvedRelease): { total: number; lastTag: string | null; headSha: string } {
-  return { total: release.total, lastTag: release.lastTag, headSha: release.headSha };
+function footerOptions(release: ResolvedRelease): { total: number; lastTag: string | null; headSha: string; endRef?: string } {
+  return { total: release.total, lastTag: release.lastTag, headSha: release.headSha, endRef: release.endTag ?? undefined };
 }
 
 function okBlock(row: OkRow): string {
@@ -139,7 +141,8 @@ function cell(text: string): string {
 /**
  * The JSON report. It always uses the per-repository shape, whatever the Markdown layout, so consumers parse one
  * structure. Rows keep input order. The output has no timestamps. `commitCount` is the candidate count, `renderedCount`
- * the entries in `notes`, and `truncated` is true exactly when some candidates were omitted.
+ * the entries in `notes`, and `truncated` is true exactly when some candidates were omitted. `endTag` is the bounded
+ * end tag, or null when the range runs to HEAD.
  */
 export function toJson(rows: Row[]): string {
   const repositories = rows.map((row) => (row.status === 'ok'
@@ -150,6 +153,7 @@ export function toJson(rows: Row[]): string {
       version: row.release.version,
       lastTag: row.release.lastTag,
       lastTagSource: row.release.lastTagSource,
+      endTag: row.release.endTag,
       commitCount: row.release.total,
       renderedCount: renderedCount(row.release),
       truncated: renderedCount(row.release) < row.release.total,
@@ -187,6 +191,7 @@ function resolveRepository(input: RepositoryInput, options: RunOptions): Row {
       versionOverride: options.versionOverride,
       repository: repository ?? undefined,
       startTag: options.startTags?.get(input.input),
+      endTag: options.endTags?.get(input.input),
     });
     return { status: 'ok', input: input.input, name, repository, release };
   } catch (error) {

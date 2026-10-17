@@ -174,6 +174,18 @@ test('no footer when exactly 100 candidates are rendered', () => {
   assert.ok(!body.includes('Showing'));
 });
 
+test('footer links to the end tag when a range is bounded, and to the commit list at it when no stable tag exists', () => {
+  const compare = renderNotes([commit('feat: a', '', 1)], 'HagiCode-org/hagilight', { total: 2, lastTag: 'v1.2.3', headSha: 'abc1234', endRef: 'v1.2.4' });
+  assert.ok(compare.endsWith('[Full changelog](https://github.com/HagiCode-org/hagilight/compare/v1.2.3...v1.2.4)\n'), compare);
+  const commits = renderNotes([commit('feat: a', '', 1)], 'HagiCode-org/hagilight', { total: 2, lastTag: null, headSha: 'abc1234', endRef: 'v1.2.4' });
+  assert.ok(commits.endsWith('[Full changelog](https://github.com/HagiCode-org/hagilight/commits/v1.2.4)\n'), commits);
+});
+
+test('footer keeps linking to headSha when no end tag is given', () => {
+  const body = renderNotes([commit('feat: a', '', 1)], 'HagiCode-org/hagilight', { total: 2, lastTag: 'v1.2.3', headSha: 'abc1234' });
+  assert.ok(body.endsWith('[Full changelog](https://github.com/HagiCode-org/hagilight/compare/v1.2.3...abc1234)\n'), body);
+});
+
 test('renders sections at level 4 from real fixture commits, one level below a repository block', () => {
   withFixtureRepo((dir) => {
     const commits = readCommits(selectBaseTag(dir)?.tag, dir);

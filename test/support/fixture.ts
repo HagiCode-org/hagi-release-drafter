@@ -96,6 +96,20 @@ export function withHistory<T>(steps: HistoryStep[], use: (dir: string) => T): T
   }
 }
 
+/**
+ * Puts `tag` on a root commit that the main branch does not contain, then checks `main` out again. The tag exists in
+ * the repository but cannot be reached from HEAD.
+ */
+export function addTagOffHistory(dir: string, tag: string): void {
+  const git = (...args: string[]): void => {
+    execFileSync('git', ['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', ...args], { cwd: dir, stdio: 'ignore' });
+  };
+  git('checkout', '--quiet', '--orphan', 'elsewhere');
+  git('commit', '--quiet', '--allow-empty', '-m', 'chore: elsewhere');
+  git('tag', tag);
+  git('checkout', '--quiet', 'main');
+}
+
 /** Makes a real shallow clone of `source` with `git clone --depth 1 file://…`, runs `use`, then removes it. */
 export function withShallowClone<T>(source: string, use: (dir: string) => T): T {
   const root = mkdtempSync(join(tmpdir(), 'hagi-release-drafter-shallow-'));

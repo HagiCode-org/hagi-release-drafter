@@ -10,6 +10,8 @@ export interface RenderOptions {
   total?: number;
   lastTag?: string | null;
   headSha?: string;
+  /** The end tag of a bounded range. The changelog link ends at it instead of at `headSha`. */
+  endRef?: string;
   level?: number;
 }
 
@@ -64,10 +66,11 @@ export function renderEntry(commit: ParsedCommit, repository?: string, label?: s
   return `- ${prefix}${scope}${commit.description} (${reference})`;
 }
 
-function changelogLink(repository: string | undefined, { lastTag, headSha }: RenderOptions): string {
+function changelogLink(repository: string | undefined, { lastTag, headSha, endRef }: RenderOptions): string {
   if (!repository) return '';
+  const end = endRef ?? headSha;
   const url = lastTag
-    ? `https://github.com/${repository}/compare/${lastTag}...${headSha}`
-    : `https://github.com/${repository}/commits/${headSha}`;
+    ? `https://github.com/${repository}/compare/${lastTag}...${end}`
+    : `https://github.com/${repository}/commits/${end}`;
   return ` [Full changelog](${url})`;
 }

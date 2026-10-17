@@ -37,6 +37,11 @@ Options:
                            Start one repository's range at this release tag, such as v0.1.0-beta.97, instead of the
                            newest one. <input> must match a repository exactly as given. The tag must be reachable
                            from that repository's HEAD. Repeatable.
+  --end-tag <input>=<tag>
+                           End one repository's range at this release tag, such as v0.1.0-beta.95, instead of HEAD.
+                           With --start-tag the range is start..end. Without it, the start is the newest release tag
+                           below the end. The version is then the tag's X.Y.Z core, unless --version is given. Same
+                           rules as --start-tag, and the tag must be reachable from that repository's HEAD. Repeatable.
   --cache-dir <dir>        Cache root for URL clones. Default: $XDG_CACHE_HOME/hagi-release-drafter,
                            then ~/.cache/hagi-release-drafter.
   --fail-fast              Stop after the first failed repository.
@@ -98,9 +103,10 @@ function execute(argv: readonly string[], cwd: string): number {
   }
   if (values['github-repository'] !== undefined) parseIdentityFlag(values['github-repository']);
 
-  // Check every input and pin before any repository is processed, so a bad argument stops the run with exit code 2.
+  // Check every input, pin, and end tag before any repository is processed, so a bad argument stops the run with exit code 2.
   const inputArgs = inputArguments(values.repo ?? [], rest, cwd);
   const startTags = parseStartTags(values['start-tag'] ?? [], inputArgs);
+  const endTags = parseEndTags(values['end-tag'] ?? [], inputArgs);
   const inputs: RepositoryInput[] = inputArgs.map((input) => classifyInput(input, cwd));
   const rows = runRepositories(inputs, {
     cacheDir: values['cache-dir'],
@@ -108,6 +114,7 @@ function execute(argv: readonly string[], cwd: string): number {
     githubRepository: values['github-repository'],
     versionOverride: values.version,
     startTags,
+    endTags,
   });
 
   for (const row of rows) {
@@ -136,6 +143,7 @@ function parse(argv: readonly string[]) {
         version: { type: 'string' },
         'github-repository': { type: 'string' },
         'start-tag': { type: 'string', multiple: true },
+        'end-tag': { type: 'string', multiple: true },
         'cache-dir': { type: 'string' },
         'fail-fast': { type: 'boolean' },
         help: { type: 'boolean', short: 'h' },
@@ -146,24 +154,34 @@ function parse(argv: readonly string[]) {
   }
 }
 
-/**
- * The `--start-tag <input>=<tag>` pins, keyed by the input exactly as given. The tag follows the last `=`, because a
- * release tag never contains one. Each rule is checked here, before any repository is read: the `=` separator, the
- * release-tag grammar, at most one pin per input, and an input that was given.
- */
+/** The `--start-tag <input>=<tag>` pins, keyed by the input exactly as given. See `parseTagPins`. */
 export function parseStartTags(pins: readonly string[], inputs: readonly string[]): Map<string, string> {
-  const startTags = new Map<string, string>();
-  for (const pin of pins) {
-    const separator = pin.lastIndexOf('=');
-    if (separator < 0) throw new UsageError(`--start-tag must be <input>=<tag>, for example ./web=v0.1.0-beta.97. Received: ${pin}`);
-    const input = pin.slice(0, separator);
-    const tag = pin.slice(separator + 1);
-    if (parseReleaseTag(tag) === null) throw new UsageError(`--start-tag ${input}=${tag}: ${tag} is not a release tag, for example v0.1.0-beta.97.`);
-    if (startTags.has(input)) throw new UsageError(`--start-tag names ${input} more than once. Give one pin per repository.`);
-    if (!inputs.includes(input)) throw new UsageError(`--start-tag ${input}=${tag}: ${input} is not a repository input. Pass it with --repo or as a positional argument, exactly as written.`);
-    startTags.set(input, tag);
+  return parseTagPins('--start-tag', pins, inputs);
+}
+
+/** The `--end-tag <input>=<tag>` bounds, keyed by the input exactly as given. They follow the same rules as the start pins. */
+export function parseEndTags(bounds: readonly string[], inputs: readonly string[]): Map<string, string> {
+  return parseTagPins('--end-tag', bounds, inputs);
+}
+
+/**
+ * The `<flag> <input>=<tag>` values, keyed by the input exactly as given. The tag follows the last `=`, because a release
+ * tag never contains one. Each rule is checked before any repository is read: the `=` separator, the release-tag grammar,
+ * at most one value per input, and an input that was given. Every message names `flag`, so the two options cannot drift.
+ */
+function parseTagPins(flag: string, values: readonly string[], inputs: readonly string[]): Map<string, string> {
+  const tags = new Map<string, string>();
+  for (const value of values) {
+    const separator = value.lastIndexOf('=');
+    if (separator < 0) throw new UsageError(`${flag} must be <input>=<tag>, for example ./web=v0.1.0-beta.97. Received: ${value}`);
+    const input = value.slice(0, separator);
+    const tag = value.slice(separator + 1);
+    if (parseReleaseTag(tag) === null) throw new UsageError(`${flag} ${input}=${tag}: ${tag} is not a release tag, for example v0.1.0-beta.97.`);
+    if (tags.has(input)) throw new UsageError(`${flag} names ${input} more than once. Give one ${flag} per repository.`);
+    if (!inputs.includes(input)) throw new UsageError(`${flag} ${input}=${tag}: ${input} is not a repository input. Pass it with --repo or as a positional argument, exactly as written.`);
+    tags.set(input, tag);
   }
-  return startTags;
+  return tags;
 }
 
 /** `--repo` values first, then positional inputs. With none, the current directory is the input when it is a git working tree. */
