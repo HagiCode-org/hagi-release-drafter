@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  bumpVersion, groupCommits, parseCommit, pruneCommits, readCommits, renderNotes, renderSections, resolveRelease, selectBaseTag, tierOf,
+  bumpVersion, groupCommits, isSkippedFromReleaseNotes, parseCommit, pruneCommits, readCommits, renderNotes, renderSections, resolveRelease, selectBaseTag, tierOf,
 } from '../scripts/release-notes.ts';
-import type { ParsedCommit } from '../scripts/release-notes.ts';
-import { withFixtureRepo } from './support/fixture.ts';
+import type { ParsedCommit, RawCommit } from '../scripts/release-notes.ts';
+import { withFixtureRepo, withHistory } from './support/fixture.ts';
 
 const sha = (n: number): string => String(n).repeat(40);
 const commit = (subject: string, body = '', n = 1): ParsedCommit => parseCommit({ sha: sha(n), subject, body });
@@ -33,6 +33,14 @@ test('groups commits by section in display order and omits empty sections', () =
   assert.deepEqual(groupCommits(commits).map(({ title }) => title), [
     'Breaking Changes', 'Features', 'Documentation', 'Maintenance', 'Other Changes',
   ]);
+});
+
+test('matches the skip-release-notes marker in a subject, ignoring case, and nowhere else', () => {
+  assert.equal(isSkippedFromReleaseNotes('docs: reword intro skip-release-notes'), true);
+  assert.equal(isSkippedFromReleaseNotes('Tweak wording [skip-release-notes]'), true);
+  assert.equal(isSkippedFromReleaseNotes('chore: cleanup Skip-Release-Notes'), true);
+  assert.equal(isSkippedFromReleaseNotes('feat: add skip release notes toggle'), false);
+  assert.equal(isSkippedFromReleaseNotes('fix(core): handle empty range'), false);
 });
 
 test('bumps patch, minor for features, and minor or major for breaking changes', () => {
@@ -217,4 +225,48 @@ test('resolveRelease applies a valid override and rejects a prefixed one', () =>
     assert.equal(resolveRelease({ cwd: dir, versionOverride: '3.0.0' }).version, '3.0.0');
     assert.throws(() => resolveRelease({ cwd: dir, versionOverride: 'v2.0.0' }), /Expected a stable release tag/);
   });
+});
+
+test('a skip-release-notes commit is absent from commits, notes, and counts, with no footer', () => {
+  withHistory([
+    { subject: 'feat: start', tag: 'v1.0.0' },
+    { subject: 'fix(core): keep this' },
+    { subject: 'feat: internal toggle skip-release-notes' },
+    { subject: 'docs: reword intro [Skip-Release-Notes]' },
+  ], (dir) => {
+    const release = resolveRelease({ cwd: dir, repository: 'HagiCode-org/hagilight' });
+    assert.deepEqual(release.commits.map(({ type }) => type), ['fix']);
+    assert.equal(release.total, 1);
+    assert.equal(release.kept.length, 1);
+    assert.match(release.notes, /keep this/);
+    assert.doesNotMatch(release.notes, /internal toggle|reword intro/);
+    assert.doesNotMatch(release.notes, /Showing \d+ of \d+ commits/);
+  });
+});
+
+test('a skipped feature does not bump the minor version, while an unskipped one does', () => {
+  withHistory([{ subject: 'feat: start', tag: 'v1.2.3' }, { subject: 'feat: add flag skip-release-notes' }], (dir) => {
+    assert.equal(resolveRelease({ cwd: dir }).version, '1.2.4');
+  });
+  withHistory([{ subject: 'feat: start', tag: 'v1.2.3' }, { subject: 'feat: add flag' }], (dir) => {
+    assert.equal(resolveRelease({ cwd: dir }).version, '1.3.0');
+  });
+});
+
+test('a range where every commit is skipped renders the empty-range body', () => {
+  withHistory([
+    { subject: 'feat: start', tag: 'v1.0.0' },
+    { subject: 'docs: a skip-release-notes' },
+    { subject: 'chore: b SKIP-RELEASE-NOTES' },
+  ], (dir) => {
+    const release = resolveRelease({ cwd: dir });
+    assert.equal(release.total, 0);
+    assert.equal(release.notes, '## Changes\n\n_No changes yet._\n');
+  });
+});
+
+test('a marker that appears only in the body does not skip the commit', () => {
+  const raw: RawCommit = { sha: sha(1), subject: 'fix(core): handle empty range', body: 'Quotes skip-release-notes in prose.' };
+  assert.equal(isSkippedFromReleaseNotes(raw.subject), false);
+  assert.equal(parseCommit(raw).type, 'fix');
 });

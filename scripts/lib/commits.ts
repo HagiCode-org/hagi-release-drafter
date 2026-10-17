@@ -70,6 +70,14 @@ export const SECTION_TITLES: readonly SectionTitle[] = SECTIONS.map(({ title }) 
 
 const HEADER = /^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?(?<bang>!)?: (?<description>\S.*)$/;
 
+/** Phrase that keeps a commit out of the release notes when it appears in the commit subject. */
+export const SKIP_RELEASE_NOTES_MARKER = 'skip-release-notes';
+
+/** True when the subject contains the marker, ignoring letter case. Only the subject is inspected, never the body. */
+export function isSkippedFromReleaseNotes(subject: string): boolean {
+  return subject.toLowerCase().includes(SKIP_RELEASE_NOTES_MARKER);
+}
+
 /** Parses one commit into a Conventional Commits shape; non-conventional subjects keep `type: null`. */
 export function parseCommit({ sha, subject, body = '' }: RawCommit): ParsedCommit {
   const match = HEADER.exec(subject.trim());

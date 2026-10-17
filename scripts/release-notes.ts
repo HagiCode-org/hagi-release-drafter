@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { bumpVersion, parseCommit, pruneCommits } from './lib/commits.ts';
+import { bumpVersion, isSkippedFromReleaseNotes, parseCommit, pruneCommits } from './lib/commits.ts';
 import type { ParsedCommit } from './lib/commits.ts';
 import { renderNotes } from './lib/render.ts';
 import { compareReleaseTags, parseReleaseTag } from './lib/release-tags.ts';
@@ -131,8 +131,9 @@ export function selectBaseTag(cwd: string, pin?: string, end?: string): BaseTag 
 }
 
 /**
- * Commits after `tag` up to `end` in `cwd`, newest first, with merge commits left out. `end` defaults to HEAD. Without a
- * tag, the range is the whole history up to `end`.
+ * Commits after `tag` up to `end` in `cwd`, newest first, with merge commits left out. Commits whose subject carries the
+ * skip-release-notes marker are left out the same way, before parsing, so they are not counted anywhere.
+ * `end` defaults to HEAD. Without a tag, the range is the whole history up to `end`.
  */
 export function readCommits(tag: string | null | undefined, cwd: string, end = 'HEAD'): ParsedCommit[] {
   const range = tag ? [`${tag}..${end}`] : [end];
@@ -142,8 +143,10 @@ export function readCommits(tag: string | null | undefined, cwd: string, end = '
     .filter(Boolean)
     .map((record) => {
       const [sha, subject, body] = record.split('\x1f');
-      return parseCommit({ sha, subject, body });
-    });
+      return { sha, subject, body };
+    })
+    .filter(({ subject }) => !isSkippedFromReleaseNotes(subject))
+    .map((raw) => parseCommit(raw));
 }
 
 /**

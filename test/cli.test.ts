@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { isSupportedNode } from '../scripts/cli.ts';
-import { withFixtureRepo, withShallowClone } from './support/fixture.ts';
+import { withFixtureRepo, withHistory, withShallowClone } from './support/fixture.ts';
 
 // Every case spawns the real scripts/cli.ts process on the Node.js runtime running this test.
 const CLI = fileURLToPath(new URL('../scripts/cli.ts', import.meta.url));
@@ -200,4 +200,26 @@ test('two runs over the same unchanged fixtures produce byte-identical output in
       assert.doesNotMatch(first, /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, 'no timestamps appear in the output');
     }
   }));
+});
+
+test('a skip-release-notes commit is left out of the notes and of the JSON counts', () => {
+  withHistory([
+    { subject: 'feat: start', tag: 'v1.0.0' },
+    { subject: 'fix(core): keep this' },
+    { subject: 'feat: internal toggle skip-release-notes' },
+  ], (dir) => {
+    const markdown = cli(['notes', dir], dir);
+    assert.equal(markdown.status, 0, markdown.stderr);
+    assert.match(markdown.stdout, /keep this/);
+    assert.doesNotMatch(markdown.stdout, /internal toggle/);
+
+    const json = cli(['notes', '--format', 'json', dir], dir);
+    assert.equal(json.status, 0, json.stderr);
+    const [row] = (JSON.parse(json.stdout) as { repositories: Array<Record<string, unknown>> }).repositories;
+    assert.equal(row.commitCount, 1, 'the skipped feat is not counted');
+    assert.equal(row.renderedCount, 1);
+    assert.equal(row.truncated, false);
+    assert.doesNotMatch(String(row.notes), /internal toggle/);
+    assert.equal(row.version, '1.0.1', 'the skipped feat does not bump the minor version');
+  });
 });
