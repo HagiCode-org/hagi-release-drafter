@@ -13,19 +13,21 @@ languages:
   - pt-BR
   - ru-RU
 sourceLanguage: en-US
-style: technical
+style: product
 ---
 
 # README requirements
 
-## Audience and focus
+## Product focus
 
-- Address maintainers who add the `hagi-release-drafter` composite GitHub Action to a repository to draft the next stable release from Conventional Commits.
-- State up front that the action drafts and never publishes.
+- Present `hagi-release-drafter` as a composite GitHub Action, with a matching local CLI, that drafts the next stable `vX.Y.Z` release from Conventional Commits: it picks the version, groups commits into release-note sections and creates or updates a GitHub draft release.
+- Address repository maintainers who add the action to a workflow, and people who preview a release with the CLI. This is a developer-facing product, so workflow usage, inputs, outputs and CLI commands are part of the product.
+- State up front that the action drafts and never publishes, and lead with the benefit of automatic release notes.
 
 ## Required content
 
-- Keep usage, inputs, outputs, permissions, checkout requirements, version selection, Conventional Commit vocabulary, entry limit, tagging policy, what the action does not do, local preview, runner requirements, development and license, as the current README does.
+- Keep the usage example, inputs, outputs, permissions, checkout requirements, version selection, Conventional Commit vocabulary, entry limit, tagging policy, what the action does not do, local preview with the CLI and runner requirements, as the current README does.
+- Keep the license statement consistent with the repository.
 - Inputs and outputs must match `action.yml`.
 
 ## README languages
@@ -36,3 +38,5 @@ style: technical
 ## Exclusions
 
 - Exclude tokens, secret values, internal hosts, machine-specific paths and private links.
+- Keep repository maintenance instructions out of the README: repository layout, internal architecture, CI, build internals and test workflow.
+- Do not list features the repository does not show.
