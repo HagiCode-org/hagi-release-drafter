@@ -22,7 +22,7 @@
   <a href="https://www.conventionalcommits.org/"><img alt="Conventional Commits" src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196?logo=conventionalcommits&logoColor=white"></a>
 </p>
 
-最後の安定タグ以降の [Conventional Commits](https://www.conventionalcommits.org/) に基づいて、次の安定版 `vX.Y.Z` のリリースのドラフトを作成する複合 GitHub Action です。GitHub のドラフトリリースを新規作成するか、既存のドラフトを更新します。**公開は決して行いません**。ドラフトの公開は GitHub の UI での手動操作として残ります。
+最後のリリースタグ（安定版またはプレリリース）以降の [Conventional Commits](https://www.conventionalcommits.org/) に基づいて、次の安定版 `vX.Y.Z` のリリースのドラフトを作成する複合 GitHub Action です。GitHub のドラフトリリースを新規作成するか、既存のドラフトを更新します。**公開は決して行いません**。ドラフトの公開は GitHub の UI での手動操作として残ります。
 
 この Action は依存関係のない Node.js スクリプトを実行するため、ビルド手順も同梱のアーティファクトも不要です。
 
@@ -98,14 +98,18 @@ jobs:
 
 ## バージョンの決まり方
 
-1. 基準は、`HEAD` から到達可能な最新の安定版 `vX.Y.Z` タグです。`v1.3.0-beta.1` のようなプレリリースタグや、semver でないタグは無視されます。
-2. 破壊的変更はメジャーバージョンを上げます。ただしメジャーが `0` の間はマイナーバージョンを上げます。
+1. 基準は、`HEAD` から到達可能で、SemVer 2.0 の順序で最も優先度の高いリリースタグです。`v0.1.0-beta.97` のようなプレリリースタグも対象となり、`v0.1.0-beta.100` は `v0.1.0-beta.97` より上位、安定版タグは自身のプレリリースより上位に位置づけられます。リリースタグの文法に合わないタグは無視されます。ビルドメタデータ（`+`）、先頭のゼロ、`release-2` のような semver でない名前が該当します。
+2. バージョンは、基準タグのコア `X.Y.Z` から導出されます。破壊的変更はメジャーバージョンを上げます。ただしメジャーが `0` の間はマイナーバージョンを上げます。
 3. `feat` コミットはマイナーバージョンを上げ、パッチバージョンを 0 にリセットします。
 4. それ以外のコミットの組み合わせは、パッチバージョンを上げます。
-5. 安定版タグがまだない場合、バージョンは `0.1.0` です。
+5. `HEAD` から到達可能なリリースタグがない場合、バージョンは `0.1.0` で、リリースノートは全履歴を対象とします。
 6. `version` 入力は導出されたバージョンを上書きします。リリースノートに含まれるコミットは変わりません。
 
-リリースノートは常に、最新の安定版タグより後のコミットを対象とします。
+リリースノートは常に、基準タグより後から範囲の終端までのコミットを対象とします。終端は `HEAD` です。ただし CLI の `--end-tag` が、あるリポジトリの範囲をリリースタグで終わらせる場合を除きます。CLI の `--start-tag` で 1 つのリポジトリの基準タグを固定できます。これが別の基準を選ぶ唯一の方法です。
+
+**終端のある範囲。** `--end-tag` を指定したリポジトリは、範囲がすでに存在するリリースを表すため、バージョンを引き上げルールからではなく、終端タグのコア `X.Y.Z` から取ります。たとえば `v0.1.0-beta.95` は `0.1.0` になります。`--version` は引き続きこれを上書きします。`--end-tag` がない場合は、上記のルールがそのまま適用されます。
+
+**挙動の変更:** Action と CLI はこのルールを共有します。到達可能なタグにプレリリースを含むリポジトリは、この Action の以前のリリースとは異なる範囲とバージョンになります。リリースタグが安定版のみのリポジトリは影響を受けません。
 
 ## Conventional Commit の語彙とセクション
 
@@ -123,9 +127,21 @@ jobs:
 
 各エントリは `- **scope:** description ([`short-sha`](commit-url))` の形式で描画されます。コミットにスコープがない場合、スコープの接頭辞は省略されます。
 
+### コミットをリリースノートから除外する
+
+**件名**（タイトル行）に `skip-release-notes` を含むコミットは、リリースノートから除外されます。一致は大文字小文字を区別しない部分文字列で判定されます（例: `docs: reword intro (skip-release-notes)`）。このマーカーは常に有効で、オン・オフを切り替える入力、フラグ、設定はありません。調べるのは件名のみのため、本文やフッターにこの語句があってもコミットは隠れません。
+
+スキップされたコミットは、範囲に含まれていないものとして扱われます。
+
+- 描画されず、エントリ数の上限、`Showing N of M commits` フッター、JSON の `commitCount` にも数えられません。
+- バージョンには影響しません。スキップされた `feat:` でマイナーバージョンが上がることはなく、そのコミットが存在しないものとしてバージョンが導出されます。
+- 範囲内のすべてのコミットがスキップされた場合、リリースノートには `_No changes yet._` と表示されます。
+
 ## エントリ数の上限
 
 リリース本文には最大 **100 件のコミットエントリ** を描画します。セクション見出し、フッター、空の範囲のテキストは数えません。候補コミットが 100 件以下であれば、すべてを描画します。
+
+CLI はリポジトリごとに、候補コミットの数と描画されたエントリ数を報告するため、切り詰められた変更履歴が黙って出力されることはありません。上限そのものは変わりません。
 
 各候補コミットには、Conventional Commit の種類から優先度のティアが割り当てられます。最初に一致したルールが適用されます。
 
@@ -145,7 +161,7 @@ jobs:
 
 セキュリティに関係する `chore`、`ci`、`docs` のコミットをティア 4 から外すには、スコープ `security` を付けてください（例: `chore(security): rotate signing key`）。
 
-コミットが省略された場合、本文の末尾にフッターが付きます（例: `_Showing 100 of 170 commits._ [Full changelog](...)`）。リンクは直近の安定タグから `HEAD` までの比較ビューを指します。安定タグがない場合は、コミット一覧を指します。
+コミットが省略された場合、本文の末尾にフッターが付きます（例: `_Showing 100 of 170 commits._ [Full changelog](https://github.com/owner/repo/compare/v1.3.0...<sha>)`）。リンクは基準タグ（安定版でもプレリリースでも可）から `HEAD` までの比較ビューを指します。リリースタグがない場合は、コミット一覧を指します。
 
 エントリ数の上限は描画される本文にのみ影響します。バージョンは省略されたコミットを含む、すべての候補コミットから導出されます。
 
@@ -163,21 +179,106 @@ jobs:
 - git タグを作成・移動しません。ドラフトは、チェックアウトされた `HEAD` のコミットを指します。
 - ドラフトを削除しません。複数のドラフトが存在する場合、GitHub が最初に返したドラフトを編集するため、複数のドラフトを保持しているメンテナーは手動で整理する必要があります。
 
+## CLI でローカルプレビューする
+
+同じエンジンが `hagi-release-drafter` としてお使いのマシンでも動作するため、リリース前にバージョンとリリースノートをプレビューできます。CLI が読むのは git 履歴だけです。公開は決して行わず、GitHub API も呼び出さず、トークンも不要です。書き込み先は、stdout、stderr、`--output` ファイル、URL キャッシュのみです。
+
+### 実行とインストール
+
+CLI には Node.js 24 以降と git が必要です。このリポジトリのクローンで、コンパイル済みの CLI を一度ビルドします。
+
+```bash
+npm ci
+npm run build
+node dist/cli.js --help
+```
+
+コマンドを `PATH` に置くには、パッケージを作成して tarball をインストールします。
+
+```bash
+npm pack
+npm install -g ./hagicode-hagi-release-drafter-0.1.0.tgz
+hagi-release-drafter --help
+```
+
+### サブコマンドとリポジトリ入力
+
+| コマンド | 出力 |
+| --- | --- |
+| `hagi-release-drafter version` | 次の安定版バージョン（例: `1.4.0`）。 |
+| `hagi-release-drafter notes` | リリース本文。デフォルト出力で 1 つのリポジトリを対象とする場合、Action のノートファイルとバイト単位で同一です。 |
+
+入力がない場合、カレントディレクトリが git の作業ツリーであればそれを使います。そうでなければ、1 つ以上の入力を `--repo <input>`（繰り返し可）または位置引数で指定します。入力は、git 作業ツリーのローカルパス、または HTTPS の `github.com` URL（`.git` サフィックスの有無は問いません）です。入力は順番に、一度に 1 つのリポジトリずつ処理されます。
+
+```bash
+# The current repository
+hagi-release-drafter version
+hagi-release-drafter notes
+
+# Commit links when the repository has no github.com origin remote
+hagi-release-drafter notes --github-repository HagiCode-org/hagi-release-drafter
+
+# Several repositories in one report
+hagi-release-drafter version ./repos/a ./repos/b
+hagi-release-drafter notes --layout merged --repo ./repos/a --repo https://github.com/HagiCode-org/hagi-release-drafter
+
+# Start one repository's range at a prerelease tag; the other keeps automatic selection
+hagi-release-drafter version --start-tag ./repos/b=v0.1.0-beta.97 ./repos/a ./repos/b
+
+# Notes for a release that is already cut: only the commits between two release tags
+hagi-release-drafter notes --start-tag ./hagicode-core=v0.1.0-beta.94 --end-tag ./hagicode-core=v0.1.0-beta.95 ./hagicode-core
+
+# JSON for other tools, written to a file
+hagi-release-drafter notes --format json --output report.json ./repos/a ./repos/b
+
+# An explicit version, for one repository only
+hagi-release-drafter version --version 2.0.0 ./repos/a
+```
+
+### フラグ
+
+| フラグ | 意味 |
+| --- | --- |
+| `--repo <input>` | リポジトリ入力。繰り返し指定できます。 |
+| `--layout <name>` | `per-repo`（デフォルト）または `merged`。Markdown レポートのみ変わります。 |
+| `--format <name>` | `markdown`（デフォルト）または `json`。 |
+| `--output <file>` | 結果をファイルに書き込みます。stdout は空のままです。 |
+| `--version <X.Y.Z>` | 導出されたバージョンの代わりに、この安定版バージョンを使います。リポジトリ 1 つの場合のみ受け付けます。 |
+| `--github-repository <owner/name>` | コミットリンクに使う識別子。すべての入力に適用され、`origin` リモートより優先されます。 |
+| `--start-tag <input>=<tag>` | 最新のタグの代わりに、このリリースタグから 1 つのリポジトリの範囲を開始します。`<input>` は、`./web` のように、指定したとおりの表記でリポジトリと完全に一致する必要があります。そのため `web` と `./web` は別の入力です。タグは存在し、そのリポジトリの `HEAD` から到達可能でなければなりません。繰り返し指定でき、リポジトリごとに 1 つです。 |
+| `--end-tag <input>=<tag>` | `HEAD` の代わりに、このリリースタグ（例: `v0.1.0-beta.95`）で 1 つのリポジトリの範囲を終了します。`--start-tag` と同じルールが適用され、タグは存在し、そのリポジトリの `HEAD` から到達可能でなければなりません。`--start-tag` がない場合、開始は終端より下で最新のリリースタグです。バージョンは、`--version` を指定しない限り、そのタグのコア `X.Y.Z` になります。繰り返し指定でき、リポジトリごとに 1 つです。 |
+| `--cache-dir <dir>` | URL クローンのキャッシュルート。詳細は下記を参照してください。 |
+| `--fail-fast` | 最初に失敗したリポジトリで停止します。 |
+| `-h`、`--help` | 使い方を表示します。 |
+
+### レイアウトと形式
+
+- **`per-repo`**（デフォルト）は、リポジトリ、ステータス、バージョン、最後のタグ、コミット数、描画数をまとめた表で始まります。コミット数はすべての候補コミットで、描画数はノートに表示されるエントリ数です。続いて各リポジトリに `###` のブロックが付き、そのセクションは `####` になります。失敗したリポジトリはバージョンが空で、ブロックに理由が記されます。
+- **`merged`** は `## Changes` セクションを 1 つ出力します。各セクションには、成功したすべてのリポジトリのエントリが含まれ、それぞれにリポジトリ名が付きます。各リポジトリは、結合前に 100 件のエントリへ絞り込まれます。切り詰められたリポジトリには、最初のセクションの前に `_hagicode-core: showing 100 of 1324 commits._` のような行が付きます。
+- **`--format json`** は、入力順の `repositories` 配列を持つオブジェクトを 1 つ出力します。各行には `input`、`name`、`status` があります。成功した行には、さらに `version`、`lastTag`、`lastTagSource`（`pinned` または `auto`）、`endTag`（終端のある範囲の終端タグ、なければ `null`）、`commitCount`（候補コミット数）、`renderedCount`（`notes` 内のエントリ数）、`truncated`、`notes` が加わります。失敗した行には `error` が加わります。JSON は常にリポジトリ単位の形で出力されるため、`--layout` では変わりません。
+
+### 終了コード
+
+| コード | 意味 |
+| --- | --- |
+| `0` | すべてのリポジトリが成功しました。 |
+| `1` | 少なくとも 1 つのリポジトリが失敗しました。理由は stderr とレポートに出力されます。単一のリポジトリが失敗した場合、stdout には何も出力されません。存在しない、または到達できない `--start-tag` の固定は、そのリポジトリだけを失敗させます。存在しない、または `HEAD` から到達できない `--end-tag`、あるいは終端タグの祖先でない開始タグも、そのリポジトリだけを失敗させます。 |
+| `2` | 使い方の誤りで、何も計算されていません。未知のサブコマンドやフラグ、無効なバージョン・レイアウト・形式、拒否された入力、重複した入力、複数の入力に対する `--version`、不正な形式・リリースタグでない・重複した・未知の `--start-tag` または `--end-tag` の値が該当します。 |
+
+### キャッシュの場所
+
+URL 入力は、完全な履歴とすべてのタグを含めて `<root>/repos/<owner>/<name>` にクローンされます。ルートは、指定があれば `--cache-dir`、なければ `$XDG_CACHE_HOME/hagi-release-drafter`、それもなければ `~/.cache/hagi-release-drafter` です。以降の実行では、タグと履歴が同じクローンに取得されます。自動的に削除されるものはないため、容量を空けるにはクローンのディレクトリを削除してください。プライベートリポジトリには、すでにお持ちの git 認証情報が使われます。ユーザー名またはパスワードを含む URL は拒否されます。
+
+### CLI が行わないこと
+
+- リリースの公開、作成、編集は行わず、GitHub API も呼び出しません。トークンは読み取らず、`GH_TOKEN` と `GITHUB_TOKEN` は何の影響も与えません。
+- 指定されたローカルリポジトリを変更しません。ref、タグ、作業ツリーはそのままです。
+- Action は CLI を使いません。引き続き Node.js 24 上で `scripts/release-notes.ts` を直接実行するため、ビルド手順は不要です。npm パッケージには、同じソースからビルドしたコンパイル済みの `dist/cli.js` が含まれます。
+
 ## ランナーの要件
 
 - GitHub がホストするランナーには `gh` と `git` が含まれています。セルフホストランナーでは GitHub CLI をインストールしてください。
 - この Action は `actions/setup-node` を通じて Node.js 24 を自動でインストールします。
-
-## 開発
-
-```bash
-npm ci
-npm test
-```
-
-このリポジトリは、Action 自身を使って自分のリリースのドラフトを作成します。`.github/workflows/release-draft.yml` は、`main` への push のたびに `uses: ./` を実行します。ドラフトの作成・更新は行いますが、公開は決して行いません。
-
-ユニットテストは、移植されたリリースノートのロジック、ドラフトスクリプトに対するスタブ `gh` を使ったテスト、`action.yml` の契約テストをカバーします。CI では自己テストも実行します。`test/fixtures/make-fixture-repo.sh` でリポジトリをビルドし、読み取り専用トークンとスタブ `gh` を使ってそのリポジトリに対して Action を実行し、バージョン、タグ、セクション見出しを検証します。
 
 ## ライセンス
 

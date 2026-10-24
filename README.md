@@ -329,21 +329,6 @@ already have. A URL that contains a username or password is rejected.
 - GitHub-hosted runners include `gh` and `git`. On a self-hosted runner, install the GitHub CLI.
 - The action installs Node.js 24 itself through `actions/setup-node`.
 
-## Development
-
-```bash
-npm ci
-npm test
-```
-
-This repository drafts its own releases with the action itself: `.github/workflows/release-draft.yml`
-runs `uses: ./` on every push to `main`. It creates or updates a draft and never publishes it.
-
-The unit tests cover the ported release-notes logic, a stub-`gh` test of the draft script, and a
-contract test of `action.yml`. CI also runs a self-test: it builds
-`test/fixtures/make-fixture-repo.sh`, runs the action against that repository with a read-only
-token and a stub `gh`, and asserts the version, the tag, and the section headings.
-
 ## License
 
 Not yet decided. A license must be chosen before this repository is published.
