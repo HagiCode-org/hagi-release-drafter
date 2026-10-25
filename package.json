@@ -17,8 +17,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "export NODE_OPTIONS=\"${NODE_OPTIONS:-} --max-old-space-size=4096\"; tsc --noEmit",
+    "build": "export NODE_OPTIONS=\"${NODE_OPTIONS:-} --max-old-space-size=4096\"; tsc -p tsconfig.build.json",
     "prepack": "npm run build",
     "test": "node --test \"test/**/*.test.ts\"",
     "pack:check": "npm pack --dry-run"
