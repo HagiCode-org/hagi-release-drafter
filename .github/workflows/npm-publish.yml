@@ -1,7 +1,7 @@
 name: Publish npm
 
 # Publishes @hagicode/hagi-release-drafter with npm trusted publishing (OIDC) and provenance.
-#   push to main            -> <next>-dev.<run>.<attempt>.g<sha7> under the `dev` dist-tag
+#   push to main            -> <next>-dev.<run>.<attempt>.<sha> under the `dev` dist-tag
 #   stable release published -> the release tag's version under the `latest` dist-tag
 # Drafts, pre-releases, and non-vX.Y.Z tags never publish.
 
