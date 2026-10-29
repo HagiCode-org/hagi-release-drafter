@@ -203,8 +203,8 @@ GitHub y no necesita ningún token. Sus únicas escrituras van a stdout, stderr,
 La CLI necesita Node.js 24 o posterior y git. Desde un clon de este repositorio, compila la CLI una vez:
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

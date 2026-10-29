@@ -188,8 +188,8 @@ CLI 會針對每個倉庫回報候選提交數以及已渲染的條目數，因�
 CLI 需要 Node.js 24 或更新版本以及 git。在本倉庫的複本中，先建置一次編譯後的 CLI：
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

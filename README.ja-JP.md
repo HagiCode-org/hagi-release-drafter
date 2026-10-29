@@ -188,8 +188,8 @@ CLI はリポジトリごとに、候補コミットの数と描画されたエ�
 CLI には Node.js 24 以降と git が必要です。このリポジトリのクローンで、コンパイル済みの CLI を一度ビルドします。
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

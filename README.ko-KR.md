@@ -188,8 +188,8 @@ CLI는 저장소마다 후보 커밋이 몇 개인지, 그리고 항목이 몇 �
 CLI에는 Node.js 24 이상과 git이 필요합니다. 이 저장소의 클론에서 컴파일된 CLI를 한 번 빌드합니다.
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

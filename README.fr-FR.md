@@ -188,8 +188,8 @@ Le même moteur s'exécute sur votre machine sous le nom `hagi-release-drafter`,
 La CLI nécessite Node.js 24 ou version ultérieure, et git. Depuis un clone de ce dépôt, compilez la CLI une fois :
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

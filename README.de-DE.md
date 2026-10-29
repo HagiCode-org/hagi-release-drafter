@@ -188,8 +188,8 @@ Dieselbe Engine läuft als `hagi-release-drafter` auf deinem Rechner, sodass du 
 Die CLI benötigt Node.js 24 oder neuer und Git. Baue in einem Klon dieses Repositorys einmalig die kompilierte CLI:
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

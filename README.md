@@ -219,8 +219,8 @@ GitHub API, and needs no token. Its only writes go to stdout, stderr, the `--out
 The CLI needs Node.js 24 or later and git. From a clone of this repository, build the compiled CLI once:
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

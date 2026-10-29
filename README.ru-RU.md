@@ -203,8 +203,8 @@ jobs:
 CLI требует Node.js 24 или новее и git. В клоне этого репозитория один раз соберите CLI:
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 

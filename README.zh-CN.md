@@ -188,8 +188,8 @@ CLI 会针对每个仓库报告候选提交数以及已渲染的条目数，因�
 CLI 需要 Node.js 24 或更高版本以及 git。在本仓库的克隆中，先构建一次编译后的 CLI：
 
 ```bash
-npm ci
-npm run build
+pnpm install
+pnpm run build
 node dist/cli.js --help
 ```
 
