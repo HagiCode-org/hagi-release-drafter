@@ -5,7 +5,7 @@ import semver from 'semver';
 import { stableVersion } from './release-notes.ts';
 
 // Release tooling for the npm package. It is a maintainer script and is not shipped in the tarball.
-//   dev                 print the next development version, for example 0.1.3-dev.42.1.abc1234
+//   dev                 print the next development version, for example 0.1.3-dev.42.1.gabc1234
 //   verify <tag>        check a stable vX.Y.Z release tag and print its bare version
 //   stamp <version>     write the version into package.json and package-lock.json
 //   publish <dist-tag>  publish the current package version under a dist-tag (dev or latest)
@@ -14,10 +14,12 @@ const PACKAGE_NAME = '@hagicode/hagi-release-drafter';
 const REPOSITORY = 'HagiCode-org/hagi-release-drafter';
 const WORKFLOW = 'npm-publish.yml';
 const REGISTRY = 'https://registry.npmjs.org';
-const DEV_SHA = /^[0-9a-f]{7}$/;
+// The `g` prefix (as in `git describe`) keeps the identifier alphanumeric: SemVer reads an all-digit sha as a number,
+// and refuses it outright when it starts with `0`.
+const DEV_SHA = /^g[0-9a-f]{7}$/;
 
 /**
- * True for a publishable version: a stable `X.Y.Z`, or `X.Y.Z-dev.<run>.<attempt>.<sha7>`. SemVer parsing rejects leading
+ * True for a publishable version: a stable `X.Y.Z`, or `X.Y.Z-dev.<run>.<attempt>.g<sha7>`. SemVer parsing rejects leading
  * zeros and build metadata; the round trip rejects a `v` prefix and surrounding whitespace, which `semver.parse` would forgive.
  */
 export function isPublishVersion(version: string): boolean {
@@ -59,10 +61,10 @@ export function nextBaseVersion(releases: ReleaseInfo[], currentVersion: string)
   return semver.inc(published, 'patch') as string;
 }
 
-/** Development version `<base>-dev.<run>.<attempt>.<sha7>`; unique per workflow attempt, so reruns never collide. */
+/** Development version `<base>-dev.<run>.<attempt>.g<sha7>`; unique per workflow attempt, so reruns never collide. */
 export function devVersion(base: string, env: Record<string, string | undefined>): string {
   const sha = env.GITHUB_SHA?.slice(0, 7).toLowerCase();
-  const version = `${base}-dev.${env.GITHUB_RUN_NUMBER}.${env.GITHUB_RUN_ATTEMPT}.${sha}`;
+  const version = `${base}-dev.${env.GITHUB_RUN_NUMBER}.${env.GITHUB_RUN_ATTEMPT}.g${sha}`;
   if (!isPublishVersion(version)) throw new Error('GITHUB_RUN_NUMBER, GITHUB_RUN_ATTEMPT, and GITHUB_SHA are required');
   return version;
 }

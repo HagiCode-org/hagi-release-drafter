@@ -27,8 +27,11 @@ test('nextBaseVersion ignores pre-releases and non-stable tags, and falls back t
 test('devVersion composes run, attempt and a short sha, and rejects missing CI variables', () => {
   assert.equal(
     devVersion('0.1.3', { GITHUB_RUN_NUMBER: '42', GITHUB_RUN_ATTEMPT: '2', GITHUB_SHA: 'ABC1234DEF5678' }),
-    '0.1.3-dev.42.2.abc1234',
+    '0.1.3-dev.42.2.gabc1234',
   );
+  // An all-digit or zero-led sha must stay a valid SemVer identifier (it was refused as a bare number).
+  assert.equal(devVersion('0.1.3', { GITHUB_RUN_NUMBER: '42', GITHUB_RUN_ATTEMPT: '1', GITHUB_SHA: '1008756aaaa' }), '0.1.3-dev.42.1.g1008756');
+  assert.equal(devVersion('0.1.3', { GITHUB_RUN_NUMBER: '42', GITHUB_RUN_ATTEMPT: '1', GITHUB_SHA: '0123456aaaa' }), '0.1.3-dev.42.1.g0123456');
   assert.throws(() => devVersion('0.1.3', { GITHUB_RUN_NUMBER: '42' }), /required/);
   assert.throws(() => devVersion('0.1.3', { GITHUB_RUN_NUMBER: '0', GITHUB_RUN_ATTEMPT: '1', GITHUB_SHA: 'abc1234' }), /required/);
 });
@@ -70,8 +73,8 @@ test('the maintainer release script is kept out of the published tarball', () =>
 });
 
 test('isPublishVersion accepts stable and dev versions only', () => {
-  for (const ok of ['0.1.0', '1.20.3', '0.1.3-dev.42.2.abc1234']) assert.equal(isPublishVersion(ok), true, ok);
-  for (const bad of ['v1.0.0', ' 1.0.0', '1.0', '01.0.0', '1.0.0-beta.1', '1.0.0+build', '1.0.0-dev.0.1.abc1234', '1.0.0-dev.1.1.ABC1234', '1.0.0-dev.1.1.abc123', '1.0.0-dev.1.1.abc1234.5']) {
+  for (const ok of ['0.1.0', '1.20.3', '0.1.3-dev.42.2.gabc1234', '0.1.3-dev.42.1.g1008756']) assert.equal(isPublishVersion(ok), true, ok);
+  for (const bad of ['v1.0.0', ' 1.0.0', '1.0', '01.0.0', '1.0.0-beta.1', '1.0.0+build', '1.0.0-dev.0.1.gabc1234', '1.0.0-dev.1.1.gABC1234', '1.0.0-dev.1.1.gabc123', '1.0.0-dev.1.1.gabc1234.5', '1.0.0-dev.1.1.abc1234']) {
     assert.equal(isPublishVersion(bad), false, bad);
   }
 });
