@@ -58,7 +58,7 @@ test('the publish workflow grants OIDC, runs only for main pushes and stable rel
   assert.match(workflow.jobs['publish-release'].if ?? '', /!github\.event\.release\.draft/);
   for (const [name, distTag] of [['publish-dev', 'dev'], ['publish-release', 'latest']] as const) {
     const runs = workflow.jobs[name].steps.map((step) => step.run ?? '');
-    const test = runs.findIndex((run) => run.includes('npm test'));
+    const test = runs.findIndex((run) => run.includes('pnpm test'));
     const publish = runs.findIndex((run) => run.includes(`npm-release.ts publish ${distTag}`));
     assert.ok(test >= 0 && publish > test, `${name} must test before it publishes`);
   }

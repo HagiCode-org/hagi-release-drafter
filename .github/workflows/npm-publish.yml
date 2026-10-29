@@ -30,16 +30,19 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
       - name: Type-check and test
         run: |
-          npm run typecheck
-          npm test
+          pnpm run typecheck
+          pnpm test
       - name: Resolve development version
         id: version
         env:
@@ -70,12 +73,15 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
           persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
       - name: Verify stable release tag
         id: version
         env:
@@ -83,8 +89,8 @@ jobs:
         run: echo "version=$(node scripts/npm-release.ts verify "$RELEASE_TAG")" >> "$GITHUB_OUTPUT"
       - name: Type-check and test
         run: |
-          npm run typecheck
-          npm test
+          pnpm run typecheck
+          pnpm test
       - name: Stamp the version
         env:
           VERSION: ${{ steps.version.outputs.version }}
