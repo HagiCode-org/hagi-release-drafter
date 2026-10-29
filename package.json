@@ -19,9 +19,11 @@
   "scripts": {
     "typecheck": "export NODE_OPTIONS=\"${NODE_OPTIONS:-} --max-old-space-size=4096\"; tsc --noEmit",
     "build": "export NODE_OPTIONS=\"${NODE_OPTIONS:-} --max-old-space-size=4096\"; tsc -p tsconfig.build.json",
-    "prepack": "npm run build",
+    "prepack": "pnpm run build",
     "test": "node --test \"test/**/*.test.ts\"",
-    "pack:check": "npm pack --dry-run"
+    "pack:check": "npm pack --dry-run",
+    "check:registry": "node scripts/check-registry-neutrality.mjs",
+    "test:registry": "node --test scripts/check-registry-neutrality.node-test.mjs"
   },
   "devDependencies": {
     "@octokit/rest": "22.0.1",
@@ -42,5 +44,6 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
-  }
+  },
+  "packageManager": "pnpm@12.16.1"
 }
