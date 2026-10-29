@@ -43,7 +43,7 @@ Requires Node.js 24+. Scripts are TypeScript run directly by Node, so there is n
 
 - `ci.yml` (push and pull request, Node 24): typecheck, test, build, `npm pack --dry-run`, a compiled-CLI smoke test, and an action self-test against the fixture repository with a stub `gh`.
 - `release-draft.yml` runs `uses: ./` on pushes to `main` (or manual dispatch with an optional stable `X.Y.Z`) to draft this repository's own release; publishing the draft stays manual.
-- `npm-publish.yml` uses npm trusted publishing (OIDC) with provenance: pushes to `main` publish a `-dev.<run>.<attempt>.g<sha7>` prerelease to the `dev` dist-tag; a published stable `vX.Y.Z` release publishes to `latest`. Do not publish by hand.
+- `npm-publish.yml` uses npm trusted publishing (OIDC) with provenance: pushes to `main` publish a `-dev.<run>.<attempt>.<sha7>` prerelease (an all-digit sha gets a `g` prefix, because SemVer reads it as a number) to the `dev` dist-tag; a published stable `vX.Y.Z` release publishes to `latest`. Do not publish by hand.
 - Consumers pin an immutable `vX.Y.Z` tag or the movable major tag `v1`; creating those tags is part of the action's own release process.
 
 ## Agent Guidelines
