@@ -26,7 +26,7 @@ jobs:
       - run: pnpm test
       # The package ships the compiled CLI, so the build, the tarball contents, and a smoke run of dist/cli.js are checked on every push.
       - run: pnpm run build
-      - run: npm pack --dry-run
+      - run: pnpm pack --dry-run
       - name: Smoke-test the compiled CLI against the fixture
         shell: bash
         run: |
