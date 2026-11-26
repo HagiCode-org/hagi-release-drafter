@@ -35,7 +35,7 @@ Requires Node.js 24+. Scripts are TypeScript run directly by Node, so there is n
 - `scripts/lib/`: shared engine (`release-tags.ts`, `commits.ts`, `aggregate.ts`, `render.ts`, `repo-input.ts`)
 - `scripts/publish-draft.sh`: creates or edits the draft release through `gh`
 - `scripts/npm-release.ts`: maintainer-only npm release tooling (`dev`, `verify`, `stamp`, `publish`); excluded from the package tarball
-- `test/`: node tests, with `test/fixtures/` (including `make-fixture-repo.sh`), `test/golden/`, and `test/support/`
+- `test/`: node tests, with `test/fixtures/` (including `make-fixture-repo.sh` and a stub `gh` in `stub-gh/`), `test/golden/`, and `test/support/`
 - `README*.md`: English plus nine translations (`zh-CN`, `zh-Hant`, `ja-JP`, `ko-KR`, `de-DE`, `fr-FR`, `es-ES`, `pt-BR`, `ru-RU`)
 - `.github/workflows/`: `ci.yml`, `npm-publish.yml`, `release-draft.yml`
 
@@ -63,5 +63,5 @@ Requires Node.js 24+. Scripts are TypeScript run directly by Node, so there is n
 
 - The repository uses pnpm, pinned in `package.json` `packageManager`. Run `corepack enable` once, then `pnpm install`. `pnpm-lock.yaml` is the only lockfile; do not commit `package-lock.json`.
 - Settings live in `pnpm-workspace.yaml`. `allowBuilds` lists the dependencies whose install scripts may run (reviewed individually, `false` means reviewed and denied); review any new dependency that has an install script and add it there.
-- A local registry mirror belongs in `~/.npmrc` only. Never commit a `registry=` line or a mirror URL; `pnpm run check:registry` (also run in CI) fails on any non-`registry.npmjs.org` `tarball` in the lockfile and on mirror hosts in tracked files.
+- A local registry mirror belongs in `~/.npmrc` only. Never commit a `registry=` line or a mirror URL; `pnpm run check:registry` fails on any non-`registry.npmjs.org` `tarball` in the lockfile and on mirror hosts in tracked files.
 - Undeclared imports fail under pnpm's strict layout: declare the package instead of hoisting it.
